@@ -1,0 +1,11 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_FI_EXPORT_SS
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN BEGIN OF BLOCK B1 WITH FRAME TITLE TEXT-001.
+
+PARAMETERS :M_FNAME(70) OBLIGATORY.
+
+SELECTION-SCREEN SKIP.
+
+SELECTION-SCREEN END OF BLOCK B1.

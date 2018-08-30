@@ -1,0 +1,138 @@
+***INCLUDE DBPAPMAC .
+* XJG Unicode 0501
+*----- macros ----------------------------------------------------------
+DEFINE pap_set_data_interval.
+*  $NAME$   = &1. "table
+*  $BEGDA$  = &2. "date
+*  $ENDDA$  = &3. "date
+  check &2 <= &3.
+  if &1 = 'ALL'.
+    loop at $rinfo$.
+      check $rinfo$-number ne '4001'.
+      $rinfo$-begda = &2.
+      $rinfo$-endda = &3.
+      modify $rinfo$ index sy-tabix.
+    endloop.
+  else.
+    read table $rinfo$ with key name = &1.
+    if sy-subrc = 0.
+      $rinfo$-begda = &2.
+      $rinfo$-endda = &3.
+      modify $rinfo$ index sy-tabix.
+    endif.
+  endif.
+END-OF-DEFINITION.
+
+****************************************
+* PAP: LOW-DATE, HIGH-DATE DEFINITION
+****************************************
+DEFINE lowdate_highdate.
+data low_date  type d value '18000101'.
+data high_date type d value '99991231'.
+END-OF-DEFINITION.
+
+* ==================================================================== *
+*     PAP_PROVIDE_FROM_FIRST
+*     PNNNN SUBTY BEGDA ENDDA
+* ==================================================================== *
+DEFINE pap_provide_from_first.
+*  $PNNNN$ = &1.
+*  $SUBTY$ = &2.
+*  $BEGDA$ = &3.
+*  $ENDDA$ = &4.
+  pap_sw_found = '0'.
+  loop at &1.
+    if &2 <> space.
+       check &1-subty = &2.
+    endif.
+    if &1-begda <= &4 and &1-endda >= &3.
+      pap_sw_found = '1'.
+      exit.
+    endif.
+  endloop.
+  if pap_sw_found = '0'.
+  clear &1.
+  endif.
+END-OF-DEFINITION.
+* ==================================================================== *
+
+* ==================================================================== *
+*     pap_provide_from_last
+*     PNNNN SUBTY BEGDA ENDDA
+* ==================================================================== *
+DEFINE pap_provide_from_last.
+*  $PNNNN$ = &1.
+*  $SUBTY$ = &2.
+*  $BEGDA$ = &3.
+*  $ENDDA$ = &4.
+  pap_sw_found = '0'.
+  clear pap_sy_tabix.
+  loop at &1.
+    if &2 <> space.
+      check &1-subty = &2.
+    endif.
+    if &1-begda <= &4 and &1-endda >= &4.
+      pap_sw_found = '1'.
+      exit.
+    endif.
+    if &1-begda <= &4 and &1-endda >= &3.
+      pap_sy_tabix = sy-tabix.
+    endif.
+  endloop.
+  if pap_sw_found = '0'.
+    if pap_sy_tabix <> 0.
+      pap_sw_found = '1'.
+      read table &1 index pap_sy_tabix.
+    else.
+      clear &1.
+    endif.
+  endif.
+END-OF-DEFINITION.
+
+DEFINE pap_set_clerk.
+****************************************
+* PAP: PROPOSAL FOR PERS. CLERK         *
+****************************************
+data: $$sbmod like t526-werks,
+      $$retcd like sy-subrc.
+  clear pme17.
+  move 'B' to pme17-tclas.
+* XJG Unicode start
+*  PERFORM RE549D(SAPDBPAP)
+*     USING 'PINCH' '3' $$SBMOD $$RETCD.
+call function 'HR_FEATURE_BACKFIELD'
+  exporting
+    feature                           = 'PINCH'
+    struc_content                     = PME17
+    kind_of_error                     = '3'
+ importing
+   back                              = $$sbmod
+ changing
+   status                            = $$retcd
+ exceptions
+   dummy                             = 1
+   error_operation                   = 2
+   no_backvalue                      = 3
+   feature_not_generated             = 4
+   invalid_sign_in_funid             = 5
+   field_in_report_tab_in_pe03       = 6
+   others                            = 7
+          .
+
+  if $$retcd ne 0 or sy-subrc ne 0.
+* XJG Unicode ende
+    clear $$sbmod.
+  else.
+    select * from t526
+             where werks eq $$sbmod
+             and   usrid eq sy-uname.
+      exit.
+    endselect.
+    if sy-subrc eq 0.
+      papresrf-sign   = 'I'.
+      papresrf-option = 'EQ'.
+      papresrf-low    = t526-sachx.
+      append papresrf.
+    endif.
+  endif.
+END-OF-DEFINITION.

@@ -1,0 +1,95 @@
+*&---------------------------------------------------------------------*
+*& Report  ZR_PP_ROUTING_VAR
+************************************************************************
+* Module            :  PP
+* Functional        :  Eng Ahmad Talaat
+* Developer         :  HADY IBRAHIM
+* Program Name      : ZR_PP_ROUTING_VAR
+* Transaction Code  : ZPO004
+* Package           : ZPP
+* Date of Creation  : 18.01.2016
+* Transport Request :
+* Description       : MONTHLY ROUTING VARIANCE
+*&---------------------------------------------------------------------*
+*& Change History
+*&---------------------------------------------------------------------*
+* Changed By        :
+* Date of Change    :
+* Transport Request :
+* Description       :
+*&---------------------------------------------------------------------*
+
+REPORT  ZR_PP_ROUTING_VAR.
+INCLUDE  ZR_PP_ROUTING_VAR_DD.
+INCLUDE  ZR_PP_ROUTING_VAR_SS.
+INCLUDE  ZR_PP_ROUTING_VAR_FORM.
+
+INITIALIZATION.
+
+"" DATE SELECTION
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR S_DATE.
+
+    DATA: BEGIN OF MF_DYNPFIELDS OCCURS 1.
+         INCLUDE STRUCTURE DYNPREAD.
+   DATA: END   OF MF_DYNPFIELDS.
+
+     DATA: MF_RETURNCODE   LIKE SY-SUBRC,
+           MF_MONAT        LIKE ISELLIST-MONTH.
+  CLEAR : MF_MONAT , MF_RETURNCODE , MF_DYNPFIELDS , MF_DYNPFIELDS[].
+           GET CURSOR FIELD MF_DYNPFIELDS-FIELDNAME.
+           APPEND MF_DYNPFIELDS .
+           MF_MONAT = SY-DATLO(6).
+  CALL FUNCTION 'POPUP_TO_SELECT_MONTH'
+    EXPORTING
+      ACTUAL_MONTH                     = MF_MONAT
+     FACTORY_CALENDAR                 = 'EG'
+     HOLIDAY_CALENDAR                 = 'EG'
+     LANGUAGE                         = SY-LANGU
+     START_COLUMN                     = 45
+     START_ROW                        = 5
+   IMPORTING
+     SELECTED_MONTH                   = MF_MONAT
+     RETURN_CODE                      = MF_RETURNCODE
+   EXCEPTIONS
+     FACTORY_CALENDAR_NOT_FOUND       = 1
+     HOLIDAY_CALENDAR_NOT_FOUND       = 2
+     MONTH_NOT_FOUND                  = 3
+     OTHERS                           = 4
+            .
+  IF SY-SUBRC EQ 0 AND MF_RETURNCODE EQ 0 .
+
+
+      CALL FUNCTION 'CONVERSION_EXIT_PERI_OUTPUT'
+        EXPORTING
+          INPUT  = MF_MONAT
+        IMPORTING
+          OUTPUT = MF_DYNPFIELDS-FIELDVALUE.
+
+        COLLECT MF_DYNPFIELDS.
+
+      CALL FUNCTION 'DYNP_VALUES_UPDATE'
+        EXPORTING
+          DYNAME                     = SY-CPROG
+          DYNUMB                     = SY-DYNNR
+        TABLES
+          DYNPFIELDS                 = MF_DYNPFIELDS
+       EXCEPTIONS
+         INVALID_ABAPWORKAREA       = 1
+         INVALID_DYNPROFIELD        = 2
+         INVALID_DYNPRONAME         = 3
+         INVALID_DYNPRONUMMER       = 4
+         INVALID_REQUEST            = 5
+         NO_FIELDDESCRIPTION        = 6
+         UNDEFIND_ERROR             = 7
+         OTHERS                     = 8
+                .
+      IF SY-SUBRC <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+      ENDIF.
+
+  ENDIF.
+START-OF-SELECTION.
+PERFORM f_process_data.
+PERFORM f_write_data.
+END-OF-SELECTION.

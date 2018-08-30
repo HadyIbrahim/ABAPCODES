@@ -1,0 +1,439 @@
+*&---------------------------------------------------------------------*
+*& Report  ZHR_FAST_ABS_ATT
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  ZHR_FAST_ABS_ATT NO STANDARD PAGE HEADING LINE-SIZE 255.
+INCLUDE ZHR_FAST_ABS_ATT_DD.
+INCLUDE ZHR_FAST_ABS_ATT_SS.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR M_FNAME.
+
+  DATA: LT_FTAB TYPE FILETABLE,
+        LS_FTAB TYPE FILE_TABLE.
+
+  CALL METHOD CL_GUI_FRONTEND_SERVICES=>FILE_OPEN_DIALOG
+*  EXPORTING
+*    WINDOW_TITLE            =
+*    DEFAULT_EXTENSION       =
+*    DEFAULT_FILENAME        =
+*    FILE_FILTER             =
+*    WITH_ENCODING           =
+*    INITIAL_DIRECTORY       =
+*    MULTISELECTION          =
+  CHANGING
+    FILE_TABLE              = LT_FTAB
+    RC                      = G_RC
+*    USER_ACTION             =
+*    FILE_ENCODING           =
+  EXCEPTIONS
+    FILE_OPEN_DIALOG_FAILED = 1
+    CNTL_ERROR              = 2
+    ERROR_NO_GUI            = 3
+    NOT_SUPPORTED_BY_GUI    = 4
+    OTHERS                  = 5
+        .
+  IF SY-SUBRC <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+  READ TABLE LT_FTAB INTO LS_FTAB INDEX 1.
+*  G_FILE  = LS_FTAB-FILENAME.
+  M_FNAME = LS_FTAB-FILENAME.
+
+START-OF-SELECTION.
+
+  PERFORM UPLOAD_EXCEL.
+
+  IF GT_FINAL IS NOT INITIAL.
+
+*    MODIFY  ZSD_PLAN2 FROM TABLE GT_FINAL.
+IF P_ATT = 'X'.
+  PERFORM BAPI_CREATE_ATTENDANCE. "INFO TYPE PA2001
+PERFORM BUILD_FIELDCATALOG.
+PERFORM DISPLAY_ALV_REPORT.
+  ELSE.
+
+PERFORM BAPI_CREATE_ABSENCE.     "INFO TYPE PA2002
+
+PERFORM BUILD_FIELDCATALOG.
+PERFORM DISPLAY_ALV_REPORT.
+ENDIF.
+
+  ENDIF.
+
+FORM BUILD_FIELDCATALOG.
+  "FILED MUST BE CAPITAL
+PERFORM :   FILL_FLDCAT USING 1     'MSG_TYPE'                   'Message Type (E/W)   '  '' 'X'  'L' '' '12',
+              FILL_FLDCAT USING 2   'PERNR'                      'Personal Number' '' '' 'L' '' '35',
+              FILL_FLDCAT USING 3   'DATE'                        'Date' '' '' 'L' '' '12',
+              FILL_FLDCAT USING 4   'MESSAGE'                     'Message'      '' '' 'L' '' '40'.
+
+  ENDFORM.
+  FORM FILL_FLDCAT  USING P TYPE I
+                        P_FLD
+                        P_TXT
+                        P_SUM
+                        P_KEY
+                        P_JUST
+                        P_ZERO
+                        P_LEN. "LENTH
+  CLEAR GS_FLDCAT.
+  GS_FLDCAT-COL_POS = P.
+  GS_FLDCAT-FIELDNAME = P_FLD.
+  GS_FLDCAT-TABNAME   = 'GT_TEMP'.
+  GS_FLDCAT-SELTEXT_M = P_TXT.
+  GS_FLDCAT-DO_SUM    = P_SUM.
+  GS_FLDCAT-KEY       = P_KEY.
+  GS_FLDCAT-JUST      = P_JUST.
+  GS_FLDCAT-NO_ZERO   = P_ZERO.
+  GS_FLDCAT-OUTPUTLEN = P_LEN.
+
+  GS_FLDCAT-datatype = 'DEC'.
+ GS_FLDCAT-decimals_out = 2.
+
+  APPEND GS_FLDCAT TO GT_FLDCAT.
+
+
+ENDFORM.                    " FILL_FLDCAT
+  FORM UPLOAD_EXCEL .
+
+  FILENAME = M_FNAME.
+  DATA: I_TAB_DATA TYPE TRUXS_T_TEXT_DATA.
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+      I_FIELD_SEPERATOR    = '#'
+      I_LINE_HEADER        = 'X'
+      I_TAB_RAW_DATA       = I_TAB_DATA
+      I_FILENAME           = FILENAME
+    TABLES
+      I_TAB_CONVERTED_DATA =  GT_FINAL
+    EXCEPTIONS
+      CONVERSION_FAILED    = 1
+      OTHERS               = 2.
+  IF SY-SUBRC <> 0.
+    MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+ENDFORM.                    " UPLOAD_EXCEL
+
+FORM DISPLAY_ALV_REPORT .
+
+  GD_REPID = SY-REPID.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+   EXPORTING
+*     I_INTERFACE_CHECK                 = ' '
+*     I_BYPASSING_BUFFER                = ' '
+*     I_BUFFER_ACTIVE                   = ' '
+     I_CALLBACK_PROGRAM                = GD_REPID
+*     I_CALLBACK_PF_STATUS_SET          = ' '
+     I_CALLBACK_USER_COMMAND           = 'USER_COMMAND'
+*     I_CALLBACK_TOP_OF_PAGE            = 'TOP_OF_PAGE'
+*     I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*     I_CALLBACK_HTML_END_OF_LIST       = ' '
+*     I_STRUCTURE_NAME                  =
+*     I_BACKGROUND_ID                   = ' '
+*     I_GRID_TITLE                      =
+*     I_GRID_SETTINGS                   =
+     IS_LAYOUT                         = GD_LAYOUT
+     IT_FIELDCAT                       = GT_FLDCAT
+*     IT_EXCLUDING                      =
+*     IT_SPECIAL_GROUPS                 =
+*     IT_SORT                           =
+*     IT_FILTER                         =
+*     IS_SEL_HIDE                       =
+*     I_DEFAULT                         = 'X'
+     I_SAVE                            = 'X'
+*     IS_VARIANT                        =
+*     IT_EVENTS                         =
+*     IT_EVENT_EXIT                     =
+*     IS_PRINT                          =
+*     IS_REPREP_ID                      =
+*     I_SCREEN_START_COLUMN             = 0
+*     I_SCREEN_START_LINE               = 0
+*     I_SCREEN_END_COLUMN               = 0
+*     I_SCREEN_END_LINE                 = 0
+*     I_HTML_HEIGHT_TOP                 = 0
+*     I_HTML_HEIGHT_END                 = 0
+*     IT_ALV_GRAPHICS                   =
+*     IT_HYPERLINK                      =
+*     IT_ADD_FIELDCAT                   =
+*     IT_EXCEPT_QINFO                   =
+*     IR_SALV_FULLSCREEN_ADAPTER        =
+*   IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER           =
+*     ES_EXIT_CAUSED_BY_USER            =
+    TABLES
+      T_OUTTAB                          =  GT_LOG "INTERNAL TABLE
+*      T_OUTTAB                          =  IT_MARC  "INTERNAL TABLE
+   EXCEPTIONS
+     PROGRAM_ERROR                     = 1
+     OTHERS                            = 2
+            .
+  IF SY-SUBRC <> 0.
+    MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_ALV_REPORT
+
+
+FORM TOP_OF_PAGE .
+
+*ALV Header declarations
+  DATA: T_HEADER TYPE SLIS_T_LISTHEADER,
+        WA_HEADER TYPE SLIS_LISTHEADER,
+        T_LINE LIKE WA_HEADER-INFO,
+        LD_LINES TYPE I,
+        LD_LINESC(10) TYPE C.
+
+* Title 1
+  WA_HEADER-TYP  = 'H'.
+  WA_HEADER-INFO = 'El Araby Group:'.
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR WA_HEADER.
+
+* Title 2
+  WA_HEADER-TYP  = 'H'.
+  WA_HEADER-INFO = 'Upload absences and attendances report'.
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR WA_HEADER.
+
+  WA_HEADER-TYP  = 'S'.
+  WA_HEADER-TYP  = 'S'.
+  WA_HEADER-KEY = 'User: '.
+  CONCATENATE SY-UNAME '.' INTO WA_HEADER-INFO.
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR: WA_HEADER.
+
+*  WA_HEADER-TYP  = 'S'.
+*  WA_HEADER-KEY = 'Search By: '.
+**  CONCATENATE key '.' into WA_HEADER-INFO.
+*  APPEND WA_HEADER TO T_HEADER.
+*  CLEAR: WA_HEADER.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      I_LOGO             = 'ENJOYSAP_LOGO'   "'ELARABYLOGO'
+      IT_LIST_COMMENTARY = T_HEADER.
+ENDFORM.                    " TOP_OF_PAGE
+
+
+
+FORM BAPI_CREATE_ABSENCE.
+  DATA:p2001  TYPE p2001.
+DATA:WT_return_P2001 like bapireturn1.
+  LOOP AT GT_FINAL INTO GS_FINAL WHERE INFO_TYPE = '2001'.
+    p2001-pernr = GS_FINAL-pernr.
+p2001-subty = GS_FINAL-SUBTYPE.
+p2001-endda = GS_FINAL-end_date.
+p2001-begda = GS_FINAL-start_date.
+p2001-BEGUZ = GS_FINAL-start_time.
+p2001-ENDUZ = GS_FINAL-end_time.
+
+CALL FUNCTION 'HR_EMPLOYEE_ENQUEUE'
+  EXPORTING
+    number = GS_FINAL-pernr.
+"ABSENCE  ####
+CALL FUNCTION 'HR_INFOTYPE_OPERATION'
+  EXPORTING
+    infty         = '2001'
+    number        = p2001-pernr
+    subtype       = p2001-subty
+    validityend   = p2001-endda
+    validitybegin = p2001-begda
+    record        = p2001
+    operation     = 'INS'
+    tclas         = 'A'
+  IMPORTING
+    return        = WT_return_P2001.
+
+CALL FUNCTION 'HR_EMPLOYEE_DEQUEUE'
+  EXPORTING
+    number = GS_FINAL-pernr.
+
+
+IF WT_return_P2001-type NE 'E' OR WT_return_P2001-type EQ 'W'.
+
+ "SEND SMS TABLE
+CALL FUNCTION 'ZBAPI_ZHR_SMS'
+  EXPORTING
+    PERNR            =  p2001-pernr
+    SUBTYPE          =  p2001-subty
+    END_DATE         =  p2001-endda
+    START_DATE       =  p2001-begda
+          .
+ ELSE.
+
+
+  "FILL LOG TABLE
+ GS_LOG-MSG_TYPE = WT_return_P2001-type.
+ GS_LOG-PERNR = p2001-pernr.
+ GS_LOG-DATE =  p2001-begda.
+ GS_LOG-MESSAGE = WT_return_P2001-MESSAGE.
+  APPEND GS_LOG TO GT_LOG.
+  CLEAR : GS_LOG.
+ENDIF.
+
+CLEAR : GS_FINAL.
+    ENDLOOP.
+  ENDFORM.
+
+  FORM BAPI_CREATE_ATTENDANCE.
+ DATA:p2002  TYPE p2002.
+ DATA:WT_return_P2002 like bapireturn1,
+ WA_return_P2002 LIKE bapireturn1.
+
+  LOOP AT GT_FINAL INTO GS_FINAL WHERE INFO_TYPE = '2002'.
+
+*concatenate  GS_FINAL-start_date+6(2)  GS_FINAL-start_date+4(2)  GS_FINAL-start_date+0(4) INTO GS_FINAL-start_date.
+*concatenate  GS_FINAL-start_date+6(2)  GS_FINAL-start_date+4(2)  GS_FINAL-start_date+0(4) INTO GS_FINAL-start_date.
+p2002-pernr = GS_FINAL-pernr.
+p2002-subty = GS_FINAL-SUBTYPE.
+p2002-begda = GS_FINAL-start_date.
+p2002-endda = GS_FINAL-end_date.
+p2002-BEGUZ = GS_FINAL-start_time.
+p2002-ENDUZ = GS_FINAL-end_time.
+
+CALL FUNCTION 'HR_EMPLOYEE_ENQUEUE'
+  EXPORTING
+    number = GS_FINAL-pernr.
+"ATTENDANCE  #### /#######
+CALL FUNCTION 'HR_INFOTYPE_OPERATION'
+  EXPORTING
+    infty         = '2002'
+    number        = p2002-pernr
+    subtype       = p2002-subty
+    validityend   = p2002-endda
+    validitybegin = p2002-begda
+    record        = p2002
+    operation     = 'INS'
+    tclas         = 'A'
+  IMPORTING
+    return        = WT_return_P2002.
+*WRITE return.
+
+CALL FUNCTION 'HR_EMPLOYEE_DEQUEUE'
+  EXPORTING
+    number = GS_FINAL-pernr.
+
+IF WT_return_P2002-type NE 'E' OR WT_return_P2002-type  EQ 'W'.
+
+ "SEND SMS TABLE
+CALL FUNCTION 'ZBAPI_ZHR_SMS'
+  EXPORTING
+    PERNR            =  p2002-pernr
+    SUBTYPE          =  p2002-subty
+    END_DATE         =  p2002-endda
+    START_DATE       =  p2002-begda
+         .
+ELSE.
+
+  "FILL LOG TABLE
+
+ GS_LOG-MSG_TYPE = WT_return_P2002-type.
+ GS_LOG-PERNR = p2002-pernr.
+ GS_LOG-DATE =  p2002-begda.
+ GS_LOG-MESSAGE = WT_return_P2002-MESSAGE.
+  APPEND GS_LOG TO GT_LOG.
+CLEAR : GS_LOG.
+ENDIF.
+
+
+
+   CLEAR : GS_FINAL.
+    ENDLOOP.
+  ENDFORM.
+
+
+FORM DOWNLOAD_ERRORFILE .
+
+  DATA: L_EFILE TYPE RLGRAP-FILENAME,
+        L_EXT(5).
+  DATA LT_CONV TYPE TRUXS_T_TEXT_DATA.
+  DATA L_STR   TYPE STRING.
+
+  SPLIT M_FNAME AT '.' INTO L_EFILE L_EXT.
+  CONCATENATE L_EFILE '_ERR' INTO L_EFILE.
+*      L_EXT = 'TXT'.
+  CONCATENATE L_EFILE L_EXT INTO L_EFILE SEPARATED BY '.'.
+
+  L_STR = L_EFILE.
+
+  CALL FUNCTION 'SAP_CONVERT_TO_XLS_FORMAT'
+    EXPORTING
+     I_FIELD_SEPERATOR          = 'X'
+*         I_LINE_HEADER              =
+      I_FILENAME                 = L_EFILE
+*         I_APPL_KEEP                = ' '
+    TABLES
+      I_TAB_SAP_DATA             = GT_ERR
+   CHANGING
+     I_TAB_CONVERTED_DATA       = LT_CONV
+   EXCEPTIONS
+     CONVERSION_FAILED          = 1
+     OTHERS                     = 2
+            .
+  IF SY-SUBRC <> 0.
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+ENDFORM.                    " DOWNLOAD_ERRORFILE
+*&---------------------------------------------------------------------*
+*&      Form  BAPI_CREATE_SMS
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*  -->  p1        text
+*  <--  p2        text
+*----------------------------------------------------------------------*
+***FORM BAPI_CREATE_SMS .
+***  "ZHR_SMS
+****  *    MODIFY  ZSD_PLAN2 FROM TABLE GT_FINAL.
+***  DATA : MAX_SMSID TYPE INT4 ,
+***         TELEPHONE TYPE SYSID .
+***
+***
+***  SELECT SMS_ID FROM ZHR_SMS INTO CORRESPONDING FIELDS OF TABLE WT_ZHR_SMS.
+***    sort WT_ZHR_SMS by SMS_ID DESCENDING.
+***    READ TABLE WT_ZHR_SMS INTO wa_ZHR_SMS INDEX 1.
+***     MAX_SMSID = wa_ZHR_SMS-SMS_ID + 1.
+***IF P_ATT = 'X'.
+***  LOOP AT GT_FINAL INTO GS_FINAL WHERE INFO_TYPE = '2002'.
+***    WA_ZHR_SMS-SMS_ID =  MAX_SMSID + 2.
+***    WA_ZHR_SMS-SMS_TYPE =  '#######'."#######".
+***SELECT  SINGLE USRID   from PA0105 INTO TELEPHONE WHERE PERNR = GS_FINAL-PERNR.
+***    WA_ZHR_SMS-SMS_PHONENUM = TELEPHONE.
+***    WA_ZHR_SMS-SMS_TEXT =   'MESSAGE FROM HADY'.
+***    WA_ZHR_SMS-SMS_SEND =  '0'.
+***    WA_ZHR_SMS-R_DATE =  SY-DATUM.
+***    WA_ZHR_SMS-R_TIME =  SY-UZEIT.
+***    WA_ZHR_SMS-TRY_SEND =  ''.
+***INSERT INTO  ZHR_SMS VALUES  WA_ZHR_SMS.
+***CLEAR : MAX_SMSID,TELEPHONE,GS_FINAL.
+***    ENDLOOP.
+***
+***  ELSE.
+***    LOOP AT GT_FINAL INTO GS_FINAL WHERE INFO_TYPE = '2001'.
+***         WA_ZHR_SMS-SMS_ID =  MAX_SMSID + 2.
+***    WA_ZHR_SMS-SMS_TYPE =  '#####'.
+***SELECT  SINGLE USRID   from PA0105 INTO TELEPHONE WHERE PERNR = GS_FINAL-PERNR.
+***    WA_ZHR_SMS-SMS_PHONENUM = TELEPHONE.
+***    WA_ZHR_SMS-SMS_TEXT =   'MESSAGE FROM HADY'.
+***    WA_ZHR_SMS-SMS_SEND =  '0'.
+***    WA_ZHR_SMS-R_DATE =  SY-DATUM.
+***    WA_ZHR_SMS-R_TIME =  SY-UZEIT.
+***    WA_ZHR_SMS-TRY_SEND =  ''.
+***INSERT INTO  ZHR_SMS VALUES  WA_ZHR_SMS.
+***      CLEAR : MAX_SMSID,TELEPHONE,GS_FINAL.
+***    ENDLOOP.
+***
+***ENDIF.
+***
+****MODIFY GT_UPDATEZTRANS FROM WA TRANSPORTING ZFLAG WHERE ZFLAG EQ '0'.
+***ENDFORM.                    " BAPI_CREATE_SMS

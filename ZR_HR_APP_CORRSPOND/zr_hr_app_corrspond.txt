@@ -1,0 +1,49 @@
+*&---------------------------------------------------------------------*
+*& Report  ZR_HR_APP_CORRSPOND
+*&*&---------------------------------------------------------------------*
+* Module            : HR
+* Functional        : AYMAN MAZEN.
+* Developer         : Hady Ibrahim.
+* Program Name      : ZR_HR_APP_CORRSPOND
+* Transaction Code  :
+* Package           : ZHR
+* Date of Creation  : 10.01.2016
+* Transport Request :DEVK919630       ABAP04       Applicants Correspandence by mail
+* Description       : SEND MAILS FOR APPLICANTS
+*&---------------------------------------------------------------------*
+REPORT  ZR_HR_APP_CORRSPOND.
+INCLUDE  ZR_HR_APP_CORRSPOND_DD.
+INCLUDE  ZR_HR_APP_CORRSPOND_SS.
+INCLUDE  ZR_HR_APP_CORRSPOND_FORMS.
+"Top-of-page.
+*--------------------------------------------------------*
+TOP-OF-PAGE.
+  PERFORM TOP_OF_PAGE.
+*--------------------------------------------------------*
+  "Start-of-selection.
+*--------------------------------------------------------*
+START-OF-SELECTION.
+ GET APPLICANT.
+
+  PERFORM GET_DATA.
+IF WT_APPLICANT IS NOT INITIAL.
+
+PERFORM SEND_MAIL.
+ENDIF.
+*  IF I_EMP_DATA[] IS INITIAL.
+*    PERFORM TEST_DATA.
+*  ENDIF.
+***  PERFORM DO_PRINT_N_GET_SPOOLNO.
+
+*--------------------------------------------------------*
+  "End-of-selection.
+*--------------------------------------------------------*
+END-OF-SELECTION.
+
+
+***************  PERFORM SEND_MAIL.
+
+*PERFORM GET_DATA.
+*PERFORM SEND_MAIL.
+
+END-OF-SELECTION.

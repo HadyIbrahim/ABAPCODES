@@ -1,0 +1,18 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_HR_APP_CORRSPOND_SS
+*&---------------------------------------------------------------------*
+
+ SELECTION-SCREEN BEGIN OF BLOCK BLCK1 WITH FRAME  TITLE TEXT-009.
+
+
+PARAMETERS  : P_INN_D TYPE SY-DATUM.
+PARAMETERS  : P_INN_T TYPE SY-UZEIT.
+PARAMETERS  : P_lOC TYPE APPLICANT-PERSK. "LOCATION
+
+parameters  : P_FORM1 type c radiobutton group sel DEFAULT 'X'.
+PARAMETERS  : P_FORM2 TYPE C RADIOBUTTON GROUP sel.
+parameters  : P_FORM3 type c radiobutton group sel.
+
+ SELECTION-SCREEN END OF BLOCK BLCK1.
+
+ SELECTION-SCREEN SKIP.

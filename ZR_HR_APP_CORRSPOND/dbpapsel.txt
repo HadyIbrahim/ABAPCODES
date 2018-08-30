@@ -1,0 +1,180 @@
+*--------------------------------------------------------------------*
+* INCLUDE DBPAPSEL
+* It will be automatically included into the database program.
+*--------------------------------------------------------------------*
+* 4.7
+* XDVACC_2     0204   Accessibility
+* XDVACC       0202   Accessibility
+* 46C
+* GGAHRK052167 070799 no intervals
+
+* 46A
+* GGAHRK033796 0199 Ranges for Matchcodes
+
+TYPES: BEGIN OF PAP_RANGE.                                  "AHRK033796
+         INCLUDE STRUCTURE DDSHSELOPT.                      "AHRK033796
+TYPES: END OF PAP_RANGE.                                    "AHRK033796
+TYPES: PAP_RANGE_TAB TYPE PAP_RANGE OCCURS 0.               "AHRK033796
+
+* Push Button for matchcodes
+SELECTION-SCREEN PUSHBUTTON /01(20) PAPS$MCD USER-COMMAND $MCD
+                                    FOR TABLE APPLICANT MODIF ID MCD.
+
+* Push Button for sorted lists
+SELECTION-SCREEN PUSHBUTTON  22(20) PAPS$SRT USER-COMMAND $SRT
+                                    FOR TABLE APPLICANT MODIF ID SRT.
+
+* First block dealing with time parameters
+SELECTION-SCREEN BEGIN OF BLOCK PAP$TIME WITH FRAME TITLE TEXT-ZBT.
+
+* time interval for selct-options 4001 (application date)
+  SELECTION-SCREEN BEGIN OF LINE.
+*   begin date
+    SELECTION-SCREEN COMMENT 01(30) TEXT-ZPS
+*                  FOR TABLE APPLICANT MODIF ID XPS.   "XDVACC
+                  FOR FIELD PAPBEGPS MODIF ID XPS.     "XDVACC
+    SELECTION-SCREEN POSITION 33 FOR TABLE APPLICANT.
+    PARAMETERS: PAPBEGPS LIKE QPAPC01-BEGPS
+                  FOR TABLE APPLICANT MODIF ID XPS.
+    SELECTION-SCREEN COMMENT 52(05) TEXT-BIS
+*                  FOR TABLE APPLICANT MODIF ID XPS.   "XDVACC
+                  FOR FIELD PAPENDPS MODIF ID XPS.     "XDVACC
+*   end date
+    SELECTION-SCREEN POSITION 58 FOR TABLE APPLICANT.
+    PARAMETERS: PAPENDPS LIKE QPAPC01-ENDPS
+                  FOR TABLE APPLICANT MODIF ID XPS.
+  SELECTION-SCREEN END OF LINE.
+
+* time interval for selct-options on 0001/4000
+* and report specific infotypes
+  SELECTION-SCREEN BEGIN OF LINE.
+*   begin date
+    SELECTION-SCREEN COMMENT 01(30) TEXT-ZDA
+*                  FOR TABLE APPLICANT MODIF ID XPS.   "XDVACC
+                   FOR FIELD PAPBEGDA MODIF ID XPS.    "XDVACC
+    SELECTION-SCREEN POSITION 33 FOR TABLE APPLICANT.
+    PARAMETERS: PAPBEGDA LIKE QPAPC01-BEGDA
+                   FOR TABLE APPLICANT MODIF ID XDA.
+    SELECTION-SCREEN COMMENT 52(05) TEXT-BIS
+*                  FOR TABLE APPLICANT MODIF ID XDA.   "XDVACC
+                  FOR FIELD PAPENDDA MODIF ID XDA.     "XDVACC
+*   end date
+    SELECTION-SCREEN POSITION 58 FOR TABLE APPLICANT.
+    PARAMETERS: PAPENDDA LIKE QPAPC01-ENDDA
+                  FOR TABLE APPLICANT MODIF ID XDA.
+  SELECTION-SCREEN END OF LINE.
+
+SELECTION-SCREEN END OF BLOCK PAP$TIME.
+
+
+* second block dealing with all standard select-options
+* for all fields on infotypes 0001/4000/4001
+SELECTION-SCREEN BEGIN OF BLOCK PAP$SSEL WITH FRAME TITLE TEXT-ZBS.
+
+* applicant number
+  SELECT-OPTIONS: PAPAPLNO FOR APPLICANT-APLNO
+                    MODIF ID SEL
+                    MATCHCODE OBJECT PAPM
+                    NO INTERVALS.                           "AHRK052167
+* applicant name (sort name)
+  SELECT-OPTIONS: PAPSNAME FOR APPLICANT-SNAME
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* advertisment
+  SELECT-OPTIONS: PAPOFFID FOR APPLICANT-OFFID
+                    MODIF ID SEL VALUE-REQUEST
+                    NO INTERVALS.                           "AHRK052167
+* unsolicited application group
+  SELECT-OPTIONS: PAPSPAPL FOR APPLICANT-SPAPL
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* company code
+  SELECT-OPTIONS: PAPBUKRS FOR APPLICANT-BUKRS
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* personnel area
+  SELECT-OPTIONS: PAPWERKS FOR APPLICANT-WERKS
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* personnel subarea
+  SELECT-OPTIONS: PAPBTRTL FOR APPLICANT-BTRTL
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* applicant group
+  SELECT-OPTIONS: PAPAPGRP FOR APPLICANT-PERSG
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* applicant range
+  SELECT-OPTIONS: PAPAPTYP FOR APPLICANT-PERSK
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* applicant status (overall)
+  SELECT-OPTIONS: PAPAPSTA FOR APPLICANT-APSTA
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* applicant status reason (overall)
+  SELECT-OPTIONS: PAPSTREA FOR APPLICANT-STREA
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* applicant event
+  SELECT-OPTIONS: PAPMASSN FOR APPLICANT-MASSN
+                    MODIF ID SEL
+                    NO INTERVALS.                           "AHRK052167
+* responsible referent
+  SELECT-OPTIONS: PAPRESRF FOR APPLICANT-RESRF
+                    MODIF ID SEL VALUE-REQUEST
+                    NO INTERVALS.                           "AHRK052167
+
+* reference available (infotype 4000)
+  SELECT-OPTIONS: PAPREFEM FOR APPLICANT-REFEM NO-DISPLAY.
+
+  SELECTION-SCREEN BEGIN OF BLOCK PAP$REF
+                   WITH FRAME TITLE TEXT-ZBR.
+    SELECTION-SCREEN BEGIN OF LINE.
+*     with and w/o reference
+      SELECTION-SCREEN POSITION 1  FOR TABLE APPLICANT.
+      PARAMETERS REFE1 LIKE RPAXXXXX-REFE1 DEFAULT 'X'
+                   RADIOBUTTON GROUP $REF
+                   FOR TABLE APPLICANT MODIF ID ZRF.
+      SELECTION-SCREEN COMMENT 03(20) TEXT-ZRA
+                   FOR FIELD refe1 MODIF ID ZRF.             "XDVACC_2
+*     with reference
+      SELECTION-SCREEN POSITION 31 FOR TABLE APPLICANT.
+      PARAMETERS REFE2 LIKE RPAXXXXX-REFE2
+                   RADIOBUTTON GROUP $REF
+                   FOR TABLE APPLICANT MODIF ID ZRF.
+      SELECTION-SCREEN COMMENT 33(20) TEXT-ZRM
+*                FOR TABLE APPLICANT MODIF ID ZRF.           "XDVACC_2
+                 FOR FIELD refe2 MODIF ID ZRF.               "XDVACC_2
+*     w/o reference
+      SELECTION-SCREEN POSITION 56 FOR TABLE APPLICANT.
+      PARAMETERS REFE3 LIKE RPAXXXXX-REFE3
+                   RADIOBUTTON GROUP $REF
+                   FOR TABLE APPLICANT MODIF ID ZRF.
+      SELECTION-SCREEN COMMENT 58(20) TEXT-ZRO
+*                  FOR TABLE APPLICANT MODIF ID ZRF.         "XDVACC_2
+                   FOR FIELD refe3 MODIF ID ZRF.             "XDVACC_2
+    SELECTION-SCREEN END OF LINE.
+*   referencing employee
+    SELECT-OPTIONS: PAPRFPER FOR APPLICANT-RFPER
+                    MODIF ID ZRF
+                    MATCHCODE OBJECT PREM.
+  SELECTION-SCREEN END OF BLOCK PAP$REF.
+
+SELECTION-SCREEN END OF BLOCK PAP$SSEL.
+
+* path options (no-display)
+PARAMETERS: PAPSORTF LIKE QPPNP-SORTF
+              FOR TABLE APPLICANT NO-DISPLAY.
+PARAMETERS: PAPSORTT LIKE QPPNP-SORTT
+              FOR TABLE APPLICANT DEFAULT 'L' NO-DISPLAY.
+PARAMETERS: PAPMCIDE LIKE QPPNP-MCIDE
+              FOR TABLE APPLICANT NO-DISPLAY.
+PARAMETERS: PAPMCSTR LIKE QPPNP-MCSTR
+              FOR TABLE APPLICANT NO-DISPLAY.
+* Matchcode Ranges                                          "AHRK033796
+PARAMETERS: PAPSELTA TYPE PAP_RANGE_TAB FOR TABLE APPLICANT "AHRK033796
+            NO-DISPLAY.                                     "AHRK033796
+
+* submit options (no-display)
+SELECT-OPTIONS: PAPINDEX FOR APPLICANT-APLNO NO-DISPLAY.

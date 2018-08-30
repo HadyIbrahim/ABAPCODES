@@ -1,0 +1,535 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_PP_ROUTING_VAR_FORM
+*&---------------------------------------------------------------------*
+
+form f_process_data .
+
+*"PRDER HEADER
+    CONCATENATE S_DATE '01' INTO FROM_DATE .
+*  MOVE T_DATE TO P_DATE.
+
+  DATA : TO_DATE LIKE AFRU-BUDAT.
+   CALL FUNCTION 'RP_LAST_DAY_OF_MONTHS'
+    EXPORTING
+      DAY_IN            = FROM_DATE "FROM
+    IMPORTING
+      LAST_DAY_OF_MONTH = TO_DATE.  "TO LAST DAY OF SELECTED MONTH
+  IF SY-SUBRC <> 0.
+    MESSAGE 'Invalid date' TYPE 'E'.
+  ENDIF.
+
+
+SELECT AF~AUFNR CA~WERKS AF~AUFPL   AF~GSTRP    AF~GLTRP    AF~PLNBEZ   AF~FEVOR AF~GMEIN AF~GAMNG
+  INTO CORRESPONDING FIELDS OF TABLE WT_AFKO
+  FROM AFKO AS AF INNER JOIN CAUFV AS CA
+  ON  AF~AUFNR = CA~AUFNR
+  WHERE AF~PLNBEZ IN S_MATNR AND AF~FEVOR IN S_FEVOR AND CA~WERKS IN S_WERKS
+  AND AF~PLNBEZ <> '' AND ( AF~PLNAW = 'P' OR AF~PLNAW = 'R')  "exclude mantenece orders
+  AND ( AF~GSTRP >= FROM_DATE AND AF~GLTRP <= TO_DATE ).
+
+"date here
+
+"CONFIRMATION AFRU
+SELECT AUFPL  APLZL AUFNR  WERKS  ARBID BUDAT ILE02 ile03 ISM02 ILE03 ISM03 GMNGA STZHL
+   FROM AFRU INTO CORRESPONDING FIELDS OF TABLE WT_AFRU FOR ALL ENTRIES IN
+  WT_AFKO WHERE WERKS = WT_AFKO-WERKS AND AUFNR = WT_AFKO-AUFNR.
+*   AND ( BUDAT >= FROM_DATE AND BUDAT <= TO_DATE ).
+
+
+ "ROUTING AFVV
+  SELECT AUFPL APLZL BMSCH VGE02 VGW02 VGE03 VGW03
+    FROM AFVV INTO CORRESPONDING FIELDS OF TABLE  WT_AFVV FOR ALL ENTRIES IN WT_AFRU
+    WHERE AUFPL  = WT_AFRU-AUFPL AND APLZL = WT_AFRU-APLZL.
+
+"WORK CENTER
+SELECT CR~OBJID  CR~ARBPL  CX~KTEXT
+   INTO CORRESPONDING FIELDS OF TABLE WT_CRHD
+  FROM CRHD AS CR INNER JOIN CRTX AS CX
+  ON CR~OBJID = CX~OBJID
+   FOR ALL ENTRIES IN WT_AFRU
+  WHERE CR~OBJID = WT_AFRU-ARBID.
+"MATERIAL
+  "SELECT SINGLE
+
+
+
+*SORT WT_AFRU BY BUDAT ARBID .
+*SORT WT_AFVV BY  APLZL AUFPL.
+
+LOOP AT WT_AFRU INTO WA_AFRU."order HEADER
+
+GS_FINAL-ORDERNO = WA_AFRU-AUFNR.
+GS_FINAL-ORDER_QTY = WA_AFRU-GMNGA.
+
+
+* ON CHANGE OF WA_AFKO-APLZL    OR WA_AFRU-BUDAT.
+* ENDAT.
+* CLEAR: WA_WCENTER.
+*APPEND WA_WCENTER TO WT_WCENTER.
+READ TABLE WT_AFKO INTO WA_AFKO WITH KEY  WERKS = WA_AFRU-WERKS  AUFNR = WA_AFRU-AUFNR.
+*GS_FINAL-UOM = WA_AFRU-ILE02.
+GS_FINAL-UOM = WA_AFko-GMEIN.
+
+**********************GS_FINAL-CONF_QTY = WA_AFRU-GMNGA."CONFIRMATION QTY YEILD
+
+GS_FINAL-CONF_ACTV2 = WA_AFRU-ISM02.
+GS_FINAL-CONF_ACTV3 = WA_AFRU-ISM03.
+
+
+READ TABLE WT_AFVV INTO  WA_AFVV WITH KEY AUFPL = WA_AFRU-AUFPL  APLZL  = WA_AFRU-APLZL. "PLAN
+*******GS_FINAL-STD_VALUE2 = WA_AFVV-VGW02 / WA_AFVV-BMSCH ." standard value  machine = yield* std time / base quantity
+*******GS_FINAL-STD_VALUE3 = WA_AFVV-VGW03 / WA_AFVV-BMSCH ." standar value labour = yield* std time / base quantity
+
+GS_FINAL-CONF_ACTV2 = WA_AFRU-ISM02.
+GS_FINAL-CONF_ACTV3 = WA_AFRU-ISM03.
+
+GS_FINAL-VGW02 = WA_AFVV-VGW02.
+GS_FINAL-VGW03 = WA_AFVV-VGW03.
+GS_FINAL-BMSCH = WA_AFVV-BMSCH.
+
+GS_FINAL-CONF_ACTV3 = WA_AFRU-ISM03.
+
+READ TABLE WT_CRhd INTO WA_CRHD WITH KEY OBJID = WA_AFRU-ARBID.
+GS_FINAL-WCENTER_CODE = WA_CRHD-ARBPL.
+GS_FINAL-WCENTER = WA_CRHD-KTEXT.
+
+
+SELECT SINGLE  MATNR  MAKTX  FROM MAKT INTO (GS_FINAL-MAT , GS_FINAL-DESCRIPTION)   WHERE MATNR = WA_AFKO-PLNBEZ.
+  GS_FINAL-DESCRIPTION = GS_FINAL-DESCRIPTION.
+ GS_FINAL-mat = GS_FINAL-MAT.
+
+IF WA_AFRU-STZHL NE '0' .
+"CANSELD ORDERS
+            GS_FINAL-CONF_QTY  = WA_AFRU-GMNGA * - 1.
+           IF WA_AFRU-ILE02 EQ 'MIN'.
+
+            GS_FINAL-CONF_ACTV2 = ( WA_AFRU-ISM02 / 60 ) * -1 .
+
+            ELSE.
+              GS_FINAL-CONF_ACTV2  = WA_AFRU-ISM02 * -1.
+            ENDIF.
+
+            GS_FINAL-ILE03  = WA_AFRU-ILE03.
+            IF WA_AFRU-ILE03 EQ 'MIN'.
+
+            GS_FINAL-CONF_ACTV3  = ( WA_AFRU-ISM03 / 60 ) * - 1.
+              ELSE.
+             GS_FINAL-CONF_ACTV3  = WA_AFRU-ISM03 * - 1 .
+            ENDIF.
+
+
+            GS_FINAL-VGE02  = WA_AFVV-VGE02.
+            IF GS_FINAL-VGE02  EQ 'MIN'.
+
+***            GS_FINAL-STD_VALUE2  = ( WA_AFRU-GMNGA * WA_AFVV-VGW02 / WA_AFVV-BMSCH * 60 ) * -1.
+            ELSE.
+***              GS_FINAL-STD_VALUE2  = ( WA_AFRU-GMNGA * WA_AFVV-VGW02 / WA_AFVV-BMSCH ) * -1.
+            ENDIF.
+
+           GS_FINAL-VGE03  = WA_AFVV-VGE03 .
+            IF GS_FINAL-VGE03 EQ 'MIN'.
+
+***            GS_FINAL-STD_VALUE3  = (  WA_AFRU-GMNGA * WA_AFVV-VGW03 )  / ( WA_AFVV-BMSCH * 60 ) * -1.
+            ELSE.
+***              GS_FINAL-STD_VALUE3  = ( WA_AFRU-GMNGA * WA_AFVV-VGW03 )  / ( WA_AFVV-BMSCH )  * -1.
+            ENDIF.
+"MACHINE
+*** GS_FINAL-STANDARD_M = ( GS_FINAL-CONF_QTY  * GS_FINAL-STD_VALUE2  ) / 60   .
+*** GS_FINAL-VAR_M = ( GS_FINAL-CONF_ACTV2 -  GS_FINAL-STANDARD_M ).
+ IF GS_FINAL-STANDARD_M IS NOT INITIAL.
+***GS_FINAL-VAR_M_PERC = ( GS_FINAL-VAR_M /   GS_FINAL-STANDARD_M ) * 100.
+ ENDIF.
+
+ "LABOUR
+
+***  GS_FINAL-STANDARD_L = ( GS_FINAL-CONF_QTY   *  GS_FINAL-STD_VALUE3  ) / 60 .
+*** GS_FINAL-VAR_L = ( GS_FINAL-CONF_ACTV3 -  GS_FINAL-STANDARD_L ).
+ IF GS_FINAL-STANDARD_L IS NOT INITIAL .
+***GS_FINAL-VAR_L_PERC = ( GS_FINAL-VAR_L /   GS_FINAL-STANDARD_L ) * 100.
+ ENDIF.
+
+            ELSE.
+*BREAK hady.
+"else of main
+            GS_FINAL-CONF_QTY   = WA_AFRU-GMNGA .
+              IF WA_AFRU-ILE02 EQ 'MIN'.
+
+            GS_FINAL-CONF_ACTV2 = WA_AFRU-ISM02 / 60  .
+            ELSE.
+             GS_FINAL-CONF_ACTV2  = WA_AFRU-ISM02 .
+            ENDIF.
+
+            GS_FINAL-ILE03  = WA_AFRU-ILE03.
+            IF WA_AFRU-ILE03 EQ 'MIN'.
+
+               GS_FINAL-CONF_ACTV3  =  WA_AFRU-ISM03 / 60 .
+              ELSE.
+             GS_FINAL-CONF_ACTV3  = WA_AFRU-ISM03 .
+            ENDIF.
+            GS_FINAL-VGE02  = WA_AFVV-VGE02.
+            IF GS_FINAL-VGE02  EQ 'MIN'.
+***              GS_FINAL-STD_VALUE2  =  (  WA_AFRU-GMNGA * WA_AFVV-VGW02 )  / (  WA_AFVV-BMSCH * 60 ) .
+           ELSE.
+***             GS_FINAL-STD_VALUE2  = ( WA_AFRU-GMNGA * WA_AFVV-VGW02 / WA_AFVV-BMSCH ) .
+           ENDIF.
+
+            GS_FINAL-VGE03  = WA_AFVV-VGE03 .
+            IF GS_FINAL-VGE03 EQ 'MIN'.
+***              GS_FINAL-STD_VALUE3  = (  WA_AFRU-GMNGA * WA_AFVV-VGW03 )  / ( WA_AFVV-BMSCH * 60 ) .
+            ELSE.
+
+***              GS_FINAL-STD_VALUE3  = (  WA_AFRU-GMNGA * WA_AFVV-VGW03 )  / ( WA_AFVV-BMSCH ) .
+            ENDIF.
+
+"MACHINE
+***  GS_FINAL-STANDARD_M = ( GS_FINAL-CONF_QTY * GS_FINAL-STD_VALUE2  ) / 60 .
+  IF GS_FINAL-STANDARD_M IS NOT INITIAL.
+***GS_FINAL-VAR_M_PERC = ( GS_FINAL-VAR_M /   GS_FINAL-STANDARD_M ) * 100.
+  ENDIF.
+***  GS_FINAL-VAR_M = ( GS_FINAL-CONF_ACTV2 - GS_FINAL-STANDARD_M ).
+
+
+ "LABOUR
+***  GS_FINAL-STANDARD_L = ( GS_FINAL-CONF_QTY * GS_FINAL-STD_VALUE3  ) / 60 .
+*** GS_FINAL-VAR_L = ( GS_FINAL-CONF_ACTV3 - GS_FINAL-STANDARD_L ).
+ IF  GS_FINAL-STANDARD_L IS NOT INITIAL.
+***GS_FINAL-VAR_L_PERC = ( GS_FINAL-VAR_L /   GS_FINAL-STANDARD_L ) * 100.
+ ENDIF.
+
+
+ENDIF.
+
+APPEND GS_FINAL TO GT_FINAL.
+
+CLEAR: GS_FINAL, WA_AFKO,WA_AFVV,WA_AFRU,WA_CRhd,gS_FINAL-MAT , GS_FINAL-DESCRIPTION.
+ENDLOOP.
+
+
+
+SORT GT_FINAL BY ORDERNO WCENTER.
+"collect
+LOOP AT GT_FINAL INTO GS_FINAL.
+
+
+GS_FINAL_F-ORDERNO  = GS_FINAL-ORDERNO.
+GS_FINAL_F-WCENTER  = GS_FINAL-WCENTER.
+GS_FINAL_F-WCENTER_CODE  = GS_FINAL-WCENTER_CODE.
+GS_FINAL_F-MAT  = GS_FINAL-MAT.
+GS_FINAL_F-DESCRIPTION  = GS_FINAL-DESCRIPTION.
+GS_FINAL_F-ORDER_QTY  = GS_FINAL-ORDER_QTY.
+GS_FINAL_F-UOM  = GS_FINAL-UOM.
+GS_FINAL_F-CONF_QTY  = GS_FINAL-CONF_QTY.
+
+GS_FINAL_F-VGE02  = GS_FINAL-VGE02.
+GS_FINAL_F-VGE03  = GS_FINAL-VGE03.
+GS_FINAL_F-ILE02 = GS_FINAL-ILE02.
+GS_FINAL_F-ILE03 = GS_FINAL-ILE03.
+
+GS_FINAL_F-VGW02 = GS_FINAL-VGW02.
+GS_FINAL_F-VGW03 = GS_FINAL-VGW03.
+GS_FINAL_F-BMSCH = GS_FINAL-BMSCH.
+
+
+
+
+GS_FINAL_F-CONF_ACTV2  = GS_FINAL-CONF_ACTV2.
+GS_FINAL_F-STD_VALUE2  = GS_FINAL-STD_VALUE2.
+GS_FINAL_F-STANDARD_M  = GS_FINAL-STANDARD_M.
+GS_FINAL_F-VAR_M  = GS_FINAL-VAR_M.
+GS_FINAL_F-VAR_M_PERC  =  GS_FINAL-VAR_M_PERC.
+
+
+GS_FINAL_F-CONF_ACTV3  = GS_FINAL-CONF_ACTV3.
+GS_FINAL_F-STD_VALUE3  = GS_FINAL-STD_VALUE3.
+GS_FINAL_F-STANDARD_L  = GS_FINAL-STANDARD_L.
+GS_FINAL_F-VAR_L  = GS_FINAL-VAR_L.
+GS_FINAL_F-VAR_L_PERC  = GS_FINAL-VAR_L_PERC .
+
+
+COLLECT  GS_FINAL_F INTO GT_FINAL_F.
+
+*DATA INDEX TYPE I.
+*MODIFY GT_FINAL_F FROM GS_FINAL_F INDEX  INDEX TRANSPORTING  VAR_M  STANDARD_M  VAR_M_PERC.
+
+"for last row summition
+******VAR_M_SUM = VAR_M_SUM + GS_FINAL-VAR_M.
+******STANDARD_M_SUM = STANDARD_M_SUM  + GS_FINAL-STANDARD_M.
+******
+******
+******AT LAST.
+******APPEND INITIAL LINE TO GT_FINAL_F.
+******GS_FINAL_F-VAR_M = VAR_M_SUM.
+******GS_FINAL_F-STANDARD_M  = STANDARD_M_SUM.
+******VAR_M_PERC_SUM  = VAR_M_SUM / STANDARD_M_SUM.
+******BREAK-POINT.
+******GS_FINAL_F-VAR_M_PERC  = VAR_M_PERC_SUM .
+******
+******DATA INDEX TYPE I.
+******INDEX = SY-TABIX - 1 .
+******MODIFY GT_FINAL_F FROM GS_FINAL_F INDEX  INDEX TRANSPORTING  VAR_M  STANDARD_M  VAR_M_PERC.
+******  ENDAT.
+
+CLEAR :VAR_M_SUM ,VAR_M_PERC_SUM ,STANDARD_M_SUM .
+CLEAR : GS_FINAL_F,GS_FINAL.
+
+ENDLOOP.
+
+"make calculations
+LOOP AT GT_FINAL_F INTO GS_FINAL_F.
+
+*IF WA_AFRU-STZHL NE '0' .
+*  for canceld orders
+           IF GS_FINAL_F-VGE02  EQ 'MIN'.
+
+*                     GS_FINAL_F-STD_VALUE2  = ( GS_FINAL_F-CONF_QTY * WA_AFVV-VGW02 / WA_AFVV-BMSCH * 60 ) . "BASE QUANTITY OF STANDARD WA_AFVV-BMSCH
+                     GS_FINAL_F-STD_VALUE2  = ( GS_FINAL_F-CONF_QTY * GS_FINAL_F-VGW02 )  / ( GS_FINAL_F-BMSCH * 60 ) .
+                     ELSE.
+                       GS_FINAL_F-STD_VALUE2  = ( GS_FINAL_F-CONF_QTY * GS_FINAL_F-VGW02 )  / ( GS_FINAL_F-BMSCH  ) .
+            ENDIF.
+             IF GS_FINAL_F-VGE03 EQ 'MIN'.
+
+                    GS_FINAL_F-STD_VALUE3  = (  GS_FINAL_F-CONF_QTY * GS_FINAL_F-VGW03 )  / ( GS_FINAL_F-BMSCH * 60 ) .
+            ELSE.
+                   GS_FINAL_F-STD_VALUE3  = ( GS_FINAL_F-CONF_QTY * GS_FINAL_F-VGW03 )  / ( GS_FINAL_F-BMSCH ) .
+            ENDIF.
+
+*          MACHINE
+           GS_FINAL_F-STANDARD_M = ( GS_FINAL_F-CONF_QTY  * GS_FINAL_F-STD_VALUE2  ) / 60   .
+           GS_FINAL_F-VAR_M = ( GS_FINAL_F-CONF_ACTV2 -  GS_FINAL_F-STANDARD_M ).
+           IF GS_FINAL_F-STANDARD_M IS NOT INITIAL.
+          GS_FINAL_F-VAR_M_PERC = ( GS_FINAL_F-VAR_M /   GS_FINAL_F-STANDARD_M ) * 100.
+           ENDIF.
+
+*           LABOUR
+            GS_FINAL_F-STANDARD_L = ( GS_FINAL_F-CONF_QTY   *  GS_FINAL_F-STD_VALUE3  ) / 60 .
+
+           GS_FINAL_F-VAR_L = ( GS_FINAL_F-CONF_ACTV3 -  GS_FINAL_F-STANDARD_L ).
+
+           IF GS_FINAL_F-STANDARD_L IS NOT INITIAL .
+
+          GS_FINAL_F-VAR_L_PERC = ( GS_FINAL_F-VAR_L /   GS_FINAL_F-STANDARD_L ) * 100.
+           ENDIF.
+MODIFY GT_FINAL_F FROM GS_FINAL_F INDEX  SY-TABIX TRANSPORTING STD_VALUE2 STD_VALUE3  VAR_M VAR_L STANDARD_L  STANDARD_M  VAR_M_PERC VAR_L_PERC.
+*  ELSE.
+*"for actual orders without canceld
+*
+*      IF GS_FINAL-VGE02  EQ 'MIN'.
+*                        GS_FINAL-STD_VALUE2  =  (  WA_AFRU-GMNGA * WA_AFVV-VGW02 )  / (  WA_AFVV-BMSCH * 60 ) .
+*                     ELSE.
+*                       GS_FINAL-STD_VALUE2  = ( WA_AFRU-GMNGA * WA_AFVV-VGW02 / WA_AFVV-BMSCH ) .
+*                     ENDIF.
+*
+*                      GS_FINAL-VGE03  = WA_AFVV-VGE03 .
+*                      IF GS_FINAL-VGE03 EQ 'MIN'.
+*                        GS_FINAL-STD_VALUE3  = (  WA_AFRU-GMNGA * WA_AFVV-VGW03 )  / ( WA_AFVV-BMSCH * 60 ) .
+*                      ELSE.
+*
+*                        GS_FINAL-STD_VALUE3  = (  WA_AFRU-GMNGA * WA_AFVV-VGW03 )  / ( WA_AFVV-BMSCH ) .
+*                      ENDIF.
+*
+**          MACHINE
+*            GS_FINAL-STANDARD_M = ( GS_FINAL-CONF_QTY * GS_FINAL-STD_VALUE2  ) / 60 .
+*            IF GS_FINAL-STANDARD_M IS NOT INITIAL.
+*            GS_FINAL-VAR_M_PERC = ( GS_FINAL-VAR_M /   GS_FINAL-STANDARD_M ) * 100.
+*            ENDIF.
+*            GS_FINAL-VAR_M = ( GS_FINAL-CONF_ACTV2 - GS_FINAL-STANDARD_M ).
+*
+*
+**           LABOUR
+*            GS_FINAL-STANDARD_L = ( GS_FINAL-CONF_QTY * GS_FINAL-STD_VALUE3  ) / 60 .
+*           GS_FINAL-VAR_L = ( GS_FINAL-CONF_ACTV3 - GS_FINAL-STANDARD_L ).
+*           IF  GS_FINAL-STANDARD_L IS NOT INITIAL.
+*            GS_FINAL-VAR_L_PERC = ( GS_FINAL-VAR_L /   GS_FINAL-STANDARD_L ) * 100.
+*           ENDIF.
+*  ENDIF.
+
+
+CLEAR : GS_FINAL_F.
+ENDLOOP.
+
+endform.
+
+FORM USER_COMMAND USING R_UCOMM LIKE SY-UCOMM
+RS_SELFIELD TYPE SLIS_SELFIELD.
+
+  DATA: LT_SEL TYPE STANDARD TABLE OF RSPARAMS,
+        LS_SEL TYPE RSPARAMS.
+
+
+  IF RS_SELFIELD-FIELDNAME = 'ORDERNO'.
+    READ TABLE GT_FINAL INTO GS_FINAL  INDEX RS_SELFIELD-TABINDEX.
+    SET PARAMETER ID 'ANR' FIELD GS_FINAL-ORDERNO.
+    CALL TRANSACTION 'CO03' AND SKIP FIRST SCREEN.
+  ENDIF.
+
+**  IF RS_SELFIELD-FIELDNAME = 'ORDER'.
+**    READ TABLE GT_TEMP INTO GS_TEMP  INDEX RS_SELFIELD-TABINDEX.
+**    SET PARAMETER ID 'ANR' FIELD GS_TEMP-ORDER.
+**    CALL TRANSACTION 'IW33' AND SKIP FIRST SCREEN.
+**  ENDIF.
+
+ENDFORM.                    "USER_COMMAND
+form f_write_data .
+ perform field_catalog.
+  perform build_layout.
+  perform build_event.
+
+  d_repid = sy-repid.
+
+
+    call function 'REUSE_ALV_LIST_DISPLAY'
+    exporting
+      i_callback_program = d_repid
+      is_layout          = d_layout
+      i_bypassing_buffer = 'X'
+      it_fieldcat        = t_fieldcat
+      I_CALLBACK_USER_COMMAND = 'USER_COMMAND'
+      i_default          = 'X'
+      i_save             = 'A'
+      it_events          = t_event[]
+      it_sort            = t_sort
+    tables
+      t_outtab           = GT_FINAL_F
+    exceptions
+      program_error      = 1
+      others             = 2.
+
+endform.
+
+
+
+form field_catalog .
+
+"DATA REPRESENTAION  HETRE
+  perform f_fieldcats using :
+ 'ORDERNO'  'ORDER NO.'       '14' ''  ''     ''  ''  '',
+ 'WCENTER_CODE'   'WCENTER_CODE'        '15' ''  ''     ''  ''  '',
+'WCENTER'   'WCENTER'        '35' ''  ''     ''  ''  '',
+
+  'MAT'  'MATERIAL'       '20' ''  ''     ''  ''  '',
+**** 'DESCRIPTION' 'DESCRIPTION'      '22' ''  ''     ''  ''  '',
+ 'DESCRIPTION' 'DESCRIPTION'      '40' ''  ''     ''  ''  '',
+ 'ORDER_QTY' 'ORDER QTY'      '15' 'X'  ''     ''  ''  '',
+ 'UOM'  'UoM'       '15' '' ''     ''  ''  '',
+ 'CONF_QTY'  'CONF.QTY'       '15' 'X' ''     ''  ''  '',
+
+ 'CONF_ACTV2'  'CONF.ACTIV 2'       '15' 'X' ''     ''  ''  '',
+*********HIDE****** 'STD_VALUE2'  'STD_VALUE2'       '15' '' ''     ''  ''  '',
+
+""""""""""""here
+'STANDARD_M'  'STANDARD_M'       '15' 'X' ''     ''  ''  '',
+ 'VAR_M'  'VAR_M'       '15' 'X' ''     ''  ''  '',
+ 'VAR_M_PERC'  'VAR_M_PERC'       '15' '' ''     ''  ''  '',
+***
+ 'CONF_ACTV3'  'CONF_ACTV3'       '15' 'X' ''     ''  ''  '',
+*******HIDE******* 'STD_VALUE3'  'STD_VALUE3'       '15' '' ''     ''  ''  '',
+***
+'STANDARD_L'  'STANDARD_L'       '15' 'X' ''     ''  ''  '',
+ 'VAR_L'  'VAR_L'       '15' 'X'  'X'     ''  ''  '',
+ 'VAR_L_PERC'  'VAR_L_PERC'       '15' ''  ''     ''  ''  ''.
+
+endform.                    " FIELD_CATALOG
+
+
+*&---------------------------------------------------------------------*
+*&      Form  F_FIELDCATS
+*&---------------------------------------------------------------------*
+form f_fieldcats using fu_fname
+                       fu_text
+                       fu_len
+                       fu_sum
+                       fu_curr
+                       fu_spot
+                       fu_out
+                       fu_sign.
+
+  data : lt_fieldcat type slis_fieldcat_alv.
+  lt_fieldcat-fieldname      = fu_fname.  "field name
+  lt_fieldcat-seltext_l      = lt_fieldcat-seltext_m =  "text
+  lt_fieldcat-seltext_s      = fu_text.
+  lt_fieldcat-reptext_ddic   = fu_text.
+  lt_fieldcat-outputlen      = fu_len.  "text length
+  lt_fieldcat-do_sum         = fu_sum.  "summing
+*  lt_fieldcat-cfieldname     = fu_curr. "currency
+  lt_fieldcat-hotspot        = fu_spot.
+  lt_fieldcat-no_out         = fu_out.
+  lt_fieldcat-no_sign        = fu_sign.
+
+  append lt_fieldcat to t_fieldcat.
+  clear: lt_fieldcat.
+
+endform.                    " F_FIELDCATS
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_LAYOUT
+*&---------------------------------------------------------------------*
+form build_layout .
+  d_layout-colwidth_optimize = ''.
+  d_layout-zebra = 'X'.
+  d_layout-no_colhead         = 'X'. "space.
+
+endform.                    " BUILD_LAYOUT
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_EVENT
+*&---------------------------------------------------------------------*
+form build_event .
+  t_event-form = 'TOP_PAGE'.
+  t_event-name = 'TOP_OF_PAGE'.
+  append t_event.
+endform.                    " BUILD_EVENT
+
+*&---------------------------------------------------------------------*
+*&      Form  top_of_page
+*&---------------------------------------------------------------------*
+
+form top_page.
+
+DATA : THIS_MONTH TYPE C LENGTH 15.
+  SELECT SINGLE LTX FROM T247 INTO THIS_MONTH  WHERE SPRAS = 'EN' AND MNR =  FROM_DATE+4(2).
+*  ULINE (339).
+  ULINE (313).
+  WRITE : / SY-VLINE , (27) 'MONTHLY ROUTING VARIANCE REPORT' CENTERED ,at 313 sy-vline.
+  WRITE : / SY-VLINE , (10) 'User name:' CENTERED  ,at 15 sy-uname CENTERED , at 313 sy-vline.
+  WRITE : / SY-VLINE , (10) 'Month:' CENTERED  ,at 15 THIS_MONTH CENTERED , at 313 sy-vline.
+  uline (339).
+  format color 4 INTENSIFIED OFF.
+   format COLOR off.
+   FORMAT COLOR 5 INTENSIFIED OFF.
+  write: / sy-vline, (175) '' centered,
+         sy-vline, (65)  'M    A   C   H   I   N   E' centered COLOR 1 INTENSIFIED off ,
+         AT 242 sy-vline ,  (60) 'L   A   B   O   U   R' ,
+                 AT 313 SY-VLINE.
+         ULINE (339).
+
+
+  format COLOR off.
+
+  FORMAT COLOR 3 INTENSIFIED OFF.
+
+*    WRITE : / SY-VLINE ,(13) 'Order NO.' CENTERED ,
+    WRITE : / SY-VLINE ,(13) 'Order NO.' CENTERED ,
+            SY-VLINE  , (13) 'Work Cntr.' CENTERED ,
+            SY-VLINE  , (33) 'Work center DESC.' CENTERED ,
+            SY-VLINE  , (18) 'Material NO.' CENTERED ,
+            SY-VLINE  , (38) 'Material Description' CENTERED ,
+            SY-VLINE  , (13) 'Order QTY' CENTERED ,
+            SY-VLINE  , (13) 'UoM' CENTERED ,
+            SY-VLINE  , (13) 'Confi. QTY.' CENTERED ,
+
+
+            SY-VLINE  , (13) 'Conf. Acti ' CENTERED ,"2
+**********HIDE********            SY-VLINE  , (13) 'STD Value ' CENTERED ,"2
+*            *****HIDE****
+           SY-VLINE  , (13) 'Standard.' CENTERED ,"""
+            SY-VLINE  , (13) 'VAR.' CENTERED ,
+            SY-VLINE  , (13) 'VAR(%)' CENTERED ,
+
+
+            SY-VLINE  , (13) 'Conf. Acti ' CENTERED ,"3
+*******HIDE*********            SY-VLINE  , (13) 'STD Value ' CENTERED ,"3
+
+        SY-VLINE  , (13) 'Standard' CENTERED ,
+            SY-VLINE  , (13) 'VAR.' CENTERED ,
+            SY-VLINE  , (13) 'VAR(%)' CENTERED ,SY-VLINE.
+
+  FORMAT COLOR OFF.
+endform.                    "top_of_page

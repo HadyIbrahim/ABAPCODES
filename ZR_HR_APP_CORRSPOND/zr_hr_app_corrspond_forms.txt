@@ -1,0 +1,429 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_HR_APP_CORRSPOND_FORMS
+*&---------------------------------------------------------------------*
+
+*&---------------------------------------------------------------------*
+*&      Form  top_of_page
+*&---------------------------------------------------------------------*
+FORM TOP_OF_PAGE.
+  DATA: INC_COLNUM TYPE I.
+  ULINE.
+  INC_COLNUM = SY-LINSZ - 60.
+  WRITE: / 'Report: ', SY-REPID(18).
+  WRITE AT 30(INC_COLNUM) SY-TITLE CENTERED.
+  INC_COLNUM = SY-LINSZ - 20.
+  WRITE: AT INC_COLNUM 'Page: ', (11) SY-PAGNO RIGHT-JUSTIFIED.
+  WRITE: / 'Client: ', SY-MANDT.
+  INC_COLNUM = SY-LINSZ - 20.
+  WRITE: AT INC_COLNUM 'Date: ', SY-DATUM.
+  WRITE: / 'User  : ', SY-UNAME.
+  INC_COLNUM = SY-LINSZ - 60.
+  WRITE AT 30(INC_COLNUM) 'Company Confidential' CENTERED.
+  INC_COLNUM = SY-LINSZ - 20.
+  WRITE: AT INC_COLNUM 'Time: ', (10) SY-UZEIT RIGHT-JUSTIFIED.
+  ULINE .
+  SKIP.
+  ULINE AT /(127).
+  WRITE:/ SY-VLINE,'pernr' COLOR COL_HEADING,13
+  SY-VLINE,'persg' COLOR COL_HEADING,20
+  SY-VLINE,'persk' COLOR COL_HEADING,26
+  SY-VLINE,'plans' COLOR COL_HEADING,35
+  SY-VLINE,'stell' COLOR COL_HEADING,46
+  SY-VLINE.
+  ULINE AT /(46).
+ENDFORM.                    "top_of_page
+*&--------------------------------------------------------*
+"Form  get_data from PA0001
+*&--------------------------------------------------------*
+FORM GET_DATA.
+BREAK-POINT.
+  data : app_mail TYPE c LENGTH 30.
+
+    pap_provide_from_first p0001 space pa$begda pa$endda.
+*    pap_provide_from_first PB4000 space pa$begda pa$endda.
+
+  IF pap_sw_found EQ 1.
+    select single USRID from PB0105 INTO app_mail WHERE PERNR = p0001-PERNR.
+      IF app_mail IS NOT INITIAL.
+
+      WA_APPLICANT-APPLICANTNO = APPLICANT-APLNO.
+      WA_APPLICANT-NAME = p0001-SNAME.
+      WA_APPLICANT-MAIL = app_mail.
+      WA_APPLICANT-FORM = '## ####### '.
+*      data : result(500) .
+*      result = 'Long Long Long Long test line 1 with characters'
+*        && 'Long Long Long Long test line 2 with characters 50'
+*        && 'Long Long Long Long test line 3 with characters 50'
+*        && 'Long Long Long Long test line 4 with characters 50'
+*        && 'Long Long Long Long test line 5 with characters 50'
+*        && 'Long Long Long Long test line 6 with characters 50'.
+*&&'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'
+*&&'EEEEEEEEEEEEE'
+*&&'EEEEEEEEEEEEEEEEEEEEEEE'
+*&&'EEEEEEEEE'.
+*&&'EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE'.
+      WA_APPLICANT-INVITE_DATE = 'DATE'.
+      WA_APPLICANT-INVITE_TIME = 'TIME'.
+      WA_APPLICANT-LOCATION = 'ADDRESS'.
+      WA_APPLICANT-mail = app_mail.
+      APPEND WA_APPLICANT TO WT_APPLICANT.
+
+      ENDIF.
+
+  ENDIF.
+
+
+* PAP_PROVIDE_FROM_LAST PB0105  SPACE PA$BEGDA PA$ENDDA.
+
+
+*  IF pnp-sw-found = '1'.
+*    WRITE: p0002-pernr, p0002-vorna, p0002-nachn.
+*  ENDIF.
+
+*PROVIDE  * FROM PB0001  BETWEEN PB-begda and PB-endda .
+*  ENDPROVIDE.
+  SELECT PERNR
+  PERSG
+  PERSK
+  PLANS
+  STELL
+  FROM PA0001
+  INTO CORRESPONDING FIELDS OF TABLE I_EMP_DATA
+  UP TO 4 ROWS.
+
+ENDFORM.                    " get_data
+*&---------------------------------------------------------------------*
+"Form  do_print_n_get_spoolno
+*&---------------------------------------------------------------------*
+FORM DO_PRINT_N_GET_SPOOLNO.
+
+  "Display Output
+  LOOP AT I_EMP_DATA INTO W_EMP_DATA .
+    AT FIRST.
+      PERFORM GET_PRINT_PARAMETERS.
+    ENDAT.
+    WRITE:/ SY-VLINE,W_EMP_DATA-PERNR,13
+    SY-VLINE,W_EMP_DATA-PERSG,20
+    SY-VLINE,W_EMP_DATA-PERSK,26
+    SY-VLINE,W_EMP_DATA-PLANS,35
+    SY-VLINE,W_EMP_DATA-STELL,46
+    SY-VLINE.
+    ULINE AT /(46).
+    AT LAST.
+      G_SPOOL_NO  = SY-SPONO.
+      NEW-PAGE PRINT OFF.
+      CALL FUNCTION 'ABAP4_COMMIT_WORK'.
+    ENDAT.
+  ENDLOOP.
+
+ENDFORM.                    "do_print_n_get_spoolno
+*&----------------------------------------------------------*
+"Form  send_mail
+"---------------
+"PACKING LIST
+"This table requires information about how the data in the
+"tables OBJECT_HEADER, CONTENTS_BIN and CONTENTS_TXT are to
+"be distributed to the documents and its attachments.The first
+"row is for the document, the following rows are each for one
+"attachment.
+*&-----------------------------------------------------------*
+FORM SEND_MAIL .
+LOOP AT WT_APPLICANT INTO WA_APPLICANT.
+
+ENDLOOP.
+  "Subject of the mail.
+  W_DOCUMENT_DATA-OBJ_NAME  = 'MAIL_TO_HEAD'.
+  W_DOCUMENT_DATA-OBJ_DESCR = '#### ####### – ###### ##### ###### ###### '.
+DATA : FORM_TYPE TYPE string .
+IF P_FORM1 = 'X'.
+
+DATA XX TYPE C LENGTH 10 VALUE 'THIS IS VARIABLE'.
+  FORM_TYPE = 'FORM1' .
+  "Body of the mail
+  PERFORM BUILD_BODY_OF_MAIL USING:SPACE,
+
+  '<font color="#FF0BCC" size = "10"> Dear Candidate (sir name),</font><br />' , XX ,
+  'Thank you for applying for the position of Recruitment Specialist  <br /> ',
+  'After careful consideration, we apologize to inform you that your application doesn’t match the criteria for this position.<br />',
+  'We will keep your application, and will contact you for any vacancy related with your experience in the future. In <br />',
+  'the meantime, you can visit our website to communicate with us to clarify anything you don’t understand.<br />',
+  'Best Regards,<br />',
+  'El Araby Group Recruitment Team <br />',
+'<br />',
+  '<font face="Verdana" size="5"> ##### ####### ) ##### ) </font><br />',
+  '#### ###### ### ####### ###### ### ( ###### ##### ) ',
+  '### ######## ####### ###### # ##### ## ####### ## ##### ### ##### ######### ######## ####### # #### ######## ',
+  '###### ##### ####### ### ## #### #### ### ###### ###### ## ######## ##### ##### ###### ####### #### ###### ',
+  '## ### ### ###### ## #### ########## ### ####### ######### ### #### ###### ',
+  '#### ####### – ###### ##### ###### ###### '.
+
+  ELSEIF P_FORM2 = 'X'.
+
+
+FORM_TYPE = 'FORM2' .
+"Body of the mail
+  PERFORM BUILD_BODY_OF_MAIL USING:SPACE,
+  'Dear Candidate (sir name),',
+  'Thank you for applying for the position of Recruitment Specialist  ',
+  'We would like to inform you that we are currently processing  your application and will update you as soon as ',
+  'possible .',
+  'Best Regards,',
+  'El Araby Group Recruitment Team',
+
+
+  '##### ####### ',
+  '#### ###### ### ####### ###### ### ( ###### ##### ) ',
+  '### ## ##### #### #### ####### ### ####### ##### ## ##### ####### ### ### #### ### ',
+  '#### ####### – ###### ##### ###### ###### '.
+
+ELSEIF  P_FORM3 = 'X'.
+
+
+  FORM_TYPE = 'FORM3' .
+  "Body of the mail
+  PERFORM BUILD_BODY_OF_MAIL USING:SPACE,
+ 'Dear Candidate (sir name),',
+  'Thank you for applying for the position of Recruitment Specialist ',
+  'We would like to inform you, it has been scheduled for an interview with you on (………..), the first interview begin ',
+  'at 9:00, But please your presence in 8:45 to register with the receptionist. Please take into account the elimination ',
+  'for 2 hours in interviewing.  ',
+  'The address:-……………………………….',
+  'Best Regards,',
+  'El Araby Group Recruitment Team',
+
+
+  '##### ####### ',
+  '#### ###### ### ####### ###### ### ( ###### ##### ) ',
+  '### ## #### ##### ### ## ##### #### ###### ###### ### ## ### (............) ##### ######## ### ## ###### 9:00 ##### ',
+  '#### #### #### ##### ## ###### 8:45 ##### ####### ## #### ######### . ##### ##### ## ######## #### ###### ',
+  '## ##### ######## .',
+  '####### :...............................................',
+  '#### ####### – ###### ##### ###### ###### '.
+
+  ELSE.
+    MESSAGE 'You Must Chose form type' TYPE 'E'.
+ENDIF.
+BREAK-POINT.
+
+  "Convert ABAP Spool job to PDF
+*  PERFORM CONVERT_SPOOL_2_PDF TABLES I_ATTACHMENT.
+
+  "Write Packing List for Body
+  DESCRIBE TABLE I_BODY_MSG LINES G_TAB_LINES.
+  W_PACKING_LIST-HEAD_START = 1.
+  W_PACKING_LIST-HEAD_NUM   = 0.
+  W_PACKING_LIST-BODY_START = 1.
+  W_PACKING_LIST-BODY_NUM   = G_TAB_LINES.
+*  W_PACKING_LIST-DOC_TYPE   = 'RAW'.
+  W_PACKING_LIST-DOC_TYPE   = 'HTM'.
+  APPEND W_PACKING_LIST TO I_PACKING_LIST.
+  CLEAR  W_PACKING_LIST.
+
+*  "Write Packing List for Attachment
+*  W_PACKING_LIST-TRANSF_BIN = 'X'.
+*  W_PACKING_LIST-HEAD_START = 1.
+*  W_PACKING_LIST-HEAD_NUM   = 1.
+*  W_PACKING_LIST-BODY_START = 1.
+*  DESCRIBE TABLE I_ATTACHMENT LINES W_PACKING_LIST-BODY_NUM.
+*  W_PACKING_LIST-DOC_TYPE   = 'PDF'.
+*  W_PACKING_LIST-OBJ_DESCR  = 'PDF Attachment'.
+*  W_PACKING_LIST-OBJ_NAME   = 'PDF_ATTACHMENT'.
+*  W_PACKING_LIST-DOC_SIZE   = W_PACKING_LIST-BODY_NUM * 255.
+*  APPEND W_PACKING_LIST TO I_PACKING_LIST.
+*  CLEAR  W_PACKING_LIST.
+
+*  "Fill the document data and get size of attachment
+*  W_DOCUMENT_DATA-OBJ_LANGU  = SY-LANGU.
+*  READ TABLE I_ATTACHMENT INTO W_ATTACHMENT INDEX G_TAB_LINES.
+*  W_DOCUMENT_DATA-DOC_SIZE = ( G_TAB_LINES - 1 ) * 255 + STRLEN( W_ATTACHMENT ).
+
+  "Receivers List.
+  W_RECEIVERS-REC_TYPE   = 'U'.  "Internet address
+*  W_RECEIVERS-RECEIVER   = P_MAIL.
+  W_RECEIVERS-RECEIVER   = 'HADY_MATRIX@YAHOO.COM'.
+  W_RECEIVERS-COM_TYPE   = 'INT'.
+  W_RECEIVERS-NOTIF_DEL  = 'X'.
+  W_RECEIVERS-NOTIF_NDEL = 'X'.
+  APPEND W_RECEIVERS TO I_RECEIVERS .
+  CLEAR:W_RECEIVERS.
+BREAK-POINT.
+  "Function module to send mail to Recipients
+  CALL FUNCTION 'SO_NEW_DOCUMENT_ATT_SEND_API1'
+    EXPORTING
+      DOCUMENT_DATA              = W_DOCUMENT_DATA
+      PUT_IN_OUTBOX              = 'X'
+      COMMIT_WORK                = 'X'
+    IMPORTING
+      SENT_TO_ALL                = G_SENT_TO_ALL
+    TABLES
+      PACKING_LIST               = I_PACKING_LIST
+      CONTENTS_BIN               = I_ATTACHMENT
+      CONTENTS_TXT               = I_BODY_MSG
+      RECEIVERS                  = I_RECEIVERS
+    EXCEPTIONS
+      TOO_MANY_RECEIVERS         = 1
+      DOCUMENT_NOT_SENT          = 2
+      DOCUMENT_TYPE_NOT_EXIST    = 3
+      OPERATION_NO_AUTHORIZATION = 4
+      PARAMETER_ERROR            = 5
+      X_ERROR                    = 6
+      ENQUEUE_ERROR              = 7
+      OTHERS                     = 8.
+
+  IF SY-SUBRC = 0 .
+    MESSAGE I303(ME) WITH 'Mail has been Successfully Sent.'.
+  ELSE.
+    WAIT UP TO 2 SECONDS.
+    "This program starts the SAPconnect send process.
+    SUBMIT RSCONN01 WITH MODE = 'INT'
+    WITH OUTPUT = 'X'
+    AND RETURN.
+  ENDIF.
+
+ENDFORM.                    " send_mail
+*&-----------------------------------------------------------*
+"      Form  build_body_of_mail
+*&-----------------------------------------------------------*
+FORM BUILD_BODY_OF_MAIL  USING L_MESSAGE.
+
+  W_BODY_MSG = L_MESSAGE.
+  APPEND W_BODY_MSG TO I_BODY_MSG.
+  CLEAR  W_BODY_MSG.
+
+ENDFORM.                    " build_body_of_mail
+*&---------------------------------------------------------------------*
+*&      Form  get_print_parameters
+*&---------------------------------------------------------------------*
+FORM GET_PRINT_PARAMETERS .
+  "Variables
+  DATA:
+  L_LAY    TYPE PRI_PARAMS-PAART,
+  L_LINES  TYPE PRI_PARAMS-LINCT,
+  L_COLS   TYPE PRI_PARAMS-LINSZ,
+  L_VAL    TYPE C.
+*Types
+  TYPES:
+  T_PRIPAR TYPE PRI_PARAMS,
+  T_ARCPAR TYPE ARC_PARAMS.
+  "Work areas
+  DATA:
+  LW_PRIPAR TYPE T_PRIPAR,
+  LW_ARCPAR TYPE T_ARCPAR.
+
+  L_LAY   = 'X_65_132'.
+  L_LINES = 65.
+  L_COLS  = 132.
+  "Read, determine, change spool print parameters and archive parameters
+  CALL FUNCTION 'GET_PRINT_PARAMETERS'
+    EXPORTING
+      IN_ARCHIVE_PARAMETERS  = LW_ARCPAR
+      IN_PARAMETERS          = LW_PRIPAR
+      LAYOUT                 = L_LAY
+      LINE_COUNT             = L_LINES
+      LINE_SIZE              = L_COLS
+      NO_DIALOG              = 'X'
+    IMPORTING
+      OUT_ARCHIVE_PARAMETERS = LW_ARCPAR
+      OUT_PARAMETERS         = LW_PRIPAR
+      VALID                  = L_VAL
+    EXCEPTIONS
+      ARCHIVE_INFO_NOT_FOUND = 1
+      INVALID_PRINT_PARAMS   = 2
+      INVALID_ARCHIVE_PARAMS = 3
+      OTHERS                 = 4.
+  IF L_VAL NE SPACE AND SY-SUBRC = 0.
+    LW_PRIPAR-PRREL = SPACE.
+    LW_PRIPAR-PRIMM = SPACE.
+    NEW-PAGE PRINT ON
+    NEW-SECTION
+    PARAMETERS LW_PRIPAR
+    ARCHIVE PARAMETERS LW_ARCPAR
+    NO DIALOG.
+  ENDIF.
+ENDFORM.                    " get_print_parameters
+*&---------------------------------------------------------------------*
+*&      Form  convert_spool_2_pdf
+*&---------------------------------------------------------------------*
+FORM CONVERT_SPOOL_2_PDF TABLES L_ATTACHMENT .
+  "Variables
+  DATA:
+  L_NO_OF_BYTES TYPE I,
+  L_PDF_SPOOLID LIKE TSP01-RQIDENT,
+  L_JOBNAME     LIKE TBTCJOB-JOBNAME,
+  L_JOBCOUNT    LIKE TBTCJOB-JOBCOUNT.
+
+  CALL FUNCTION 'CONVERT_ABAPSPOOLJOB_2_PDF'
+    EXPORTING
+      SRC_SPOOLID              = G_SPOOL_NO
+      NO_DIALOG                = ' '
+    IMPORTING
+      PDF_BYTECOUNT            = L_NO_OF_BYTES
+      PDF_SPOOLID              = L_PDF_SPOOLID
+      BTC_JOBNAME              = L_JOBNAME
+      BTC_JOBCOUNT             = L_JOBCOUNT
+    TABLES
+      PDF                      = I_PDF
+    EXCEPTIONS
+      ERR_NO_ABAP_SPOOLJOB     = 1
+      ERR_NO_SPOOLJOB          = 2
+      ERR_NO_PERMISSION        = 3
+      ERR_CONV_NOT_POSSIBLE    = 4
+      ERR_BAD_DESTDEVICE       = 5
+      USER_CANCELLED           = 6
+      ERR_SPOOLERROR           = 7
+      ERR_TEMSEERROR           = 8
+      ERR_BTCJOB_OPEN_FAILED   = 9
+      ERR_BTCJOB_SUBMIT_FAILED = 10
+      ERR_BTCJOB_CLOSE_FAILED  = 11
+      OTHERS                   = 12.
+
+  CASE SY-SUBRC.
+    WHEN 0.
+    WHEN 1.
+      MESSAGE S000(0K) WITH 'No ABAP Spool Job'.
+      EXIT.
+    WHEN 2.
+      MESSAGE S000(0K) WITH 'Spool Number does not exist'.
+      EXIT.
+    WHEN 3.
+      MESSAGE S000(0K) WITH 'No permission for spool'.
+      EXIT.
+    WHEN OTHERS.
+      MESSAGE S000(0K)
+      WITH 'Error in Function CONVERT_ABAPSPOOLJOB_2_PDF'.
+      EXIT.
+  ENDCASE.
+
+  CALL FUNCTION 'SX_TABLE_LINE_WIDTH_CHANGE'
+    EXPORTING
+      LINE_WIDTH_SRC              = 134
+      LINE_WIDTH_DST              = 255
+    TABLES
+      CONTENT_IN                  = I_PDF
+      CONTENT_OUT                 = L_ATTACHMENT
+    EXCEPTIONS
+      ERR_LINE_WIDTH_SRC_TOO_LONG = 1
+      ERR_LINE_WIDTH_DST_TOO_LONG = 2
+      ERR_CONV_FAILED             = 3
+      OTHERS                      = 4.
+  IF SY-SUBRC NE 0.
+    MESSAGE S000(0K) WITH 'Conversion Failed'.
+    EXIT.
+  ENDIF.
+
+ENDFORM.                    " convert_spool_2_pdf
+*&---------------------------------------------------------------------*
+*&      Form  test_data
+*&---------------------------------------------------------------------*
+FORM TEST_DATA .
+  DO 10 TIMES.
+    W_EMP_DATA-PERNR = SY-INDEX.
+    W_EMP_DATA-PERSG = '2'.
+    W_EMP_DATA-PERSK = '93'.
+    W_EMP_DATA-PLANS = '99999999'.
+    W_EMP_DATA-STELL = '31414144'.
+    APPEND W_EMP_DATA TO I_EMP_DATA.
+    CLEAR  W_EMP_DATA.
+  ENDDO.
+
+ENDFORM.                    " test_data

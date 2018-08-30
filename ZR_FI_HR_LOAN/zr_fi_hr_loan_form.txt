@@ -1,0 +1,398 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_FI_HR_LOAN_FORM
+*&---------------------------------------------------------------------*
+
+
+
+
+
+FORM DISPLAY_WAITING .
+  CALL FUNCTION 'SAPGUI_PROGRESS_INDICATOR'
+    EXPORTING
+      percentage = 100
+      text       = 'List view...'(080).
+ENDFORM.
+FORM BUILD_FIELDCATALOG.
+  "FILED MUST BE CAPITAL
+PERFORM :   FILL_FLDCAT USING 1   'AJDAT'                               '# ###### ## ######'  '' 'X'  'L' '' '12',
+              FILL_FLDCAT USING 2   'AADAT'                               '# ##### ### #####' '' '' 'L' '' '12',
+              FILL_FLDCAT USING 3   'AIDAT'                          '##### #####' '' '' 'L' '' '12',
+              FILL_FLDCAT USING 4   'BUKRS'                '###### #########'      '' '' 'L' '' '13',
+              FILL_FLDCAT USING 5   'WRTAK'                  '#### ########'   '' '' 'L' '' '13',
+              FILL_FLDCAT USING 6   'WAERS'           '#### ########'      '' '' 'L' '' '13',
+              FILL_FLDCAT USING 7   'AODAT'           '##### #######'      '' '' 'L' '' '10',
+              FILL_FLDCAT USING 8   'ZZPO'           '### ### #######'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 9   'INCO1'           'INCOTERM1'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 10   'INCO2'           'INCOTERM2'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 11   'LCNUM'           '### #####'      '' '' 'L' '' '12' ,
+              FILL_FLDCAT USING 12   'NAME1'           '###### #######'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 13   'BANKA'           '#####'      '' '' 'L' '' '20',
+              FILL_FLDCAT USING 13   'BNKLZ'           '#### ##### #####'      '' '' 'L' '' '20',
+              FILL_FLDCAT USING 14   'BAANR'           '### #######'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 15   'GOODS'           '######'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 16   'LAGNA'           '######'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 17   'FEE_DOLLAR'           '###### ########'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 18   'OPERATOR'           '##### #######'      '' '' 'L' '' '12',
+
+              FILL_FLDCAT USING 18   'POUND_OPERATOR'           '##### ######'      '' '' 'L' '' '12',
+              FILL_FLDCAT USING 18   'COMIISION_PLAN'           '#### ##### #####'      '' '' 'L' '' '18'.
+
+
+
+  ENDFORM.
+
+FORM FILL_FLDCAT  USING P TYPE I
+                        P_FLD
+                        P_TXT
+                        P_SUM
+                        P_KEY
+                        P_JUST
+                        P_ZERO
+                        P_LEN. "LENTH
+  CLEAR GS_FLDCAT.
+  GS_FLDCAT-COL_POS = P.
+  GS_FLDCAT-FIELDNAME = P_FLD.
+  GS_FLDCAT-TABNAME   = 'GT_TEMP'.
+  GS_FLDCAT-SELTEXT_M = P_TXT.
+  GS_FLDCAT-DO_SUM    = P_SUM.
+  GS_FLDCAT-KEY       = P_KEY.
+  GS_FLDCAT-JUST      = P_JUST.
+  GS_FLDCAT-NO_ZERO   = P_ZERO.
+  GS_FLDCAT-OUTPUTLEN = P_LEN.
+
+  GS_FLDCAT-datatype = 'DEC'.
+ GS_FLDCAT-decimals_out = 2.
+
+  APPEND GS_FLDCAT TO GT_FLDCAT.
+
+
+ENDFORM.                    " FILL_FLDCAT
+*---------------------------------------------------------------------*
+*       FORM user_command                                             *
+*---------------------------------------------------------------------*
+*  -->  R_UCOMM                                                       *
+*  -->  RS_SELFIELD                                                   *
+*---------------------------------------------------------------------*
+FORM USER_COMMAND USING R_UCOMM LIKE SY-UCOMM
+RS_SELFIELD TYPE SLIS_SELFIELD.
+
+  DATA: LT_SEL TYPE STANDARD TABLE OF RSPARAMS,
+        LS_SEL TYPE RSPARAMS.
+
+
+
+
+ENDFORM.                    "USER_COMMAND
+
+FORM DISPLAY_ALV_REPORT .
+
+  GD_REPID = SY-REPID.
+  CALL FUNCTION 'REUSE_ALV_GRID_DISPLAY'
+   EXPORTING
+*     I_INTERFACE_CHECK                 = ' '
+*     I_BYPASSING_BUFFER                = ' '
+*     I_BUFFER_ACTIVE                   = ' '
+     I_CALLBACK_PROGRAM                = GD_REPID
+*     I_CALLBACK_PF_STATUS_SET          = ' '
+     I_CALLBACK_USER_COMMAND           = 'USER_COMMAND'
+     I_CALLBACK_TOP_OF_PAGE            = 'TOP_OF_PAGE'
+*     I_CALLBACK_HTML_TOP_OF_PAGE       = ' '
+*     I_CALLBACK_HTML_END_OF_LIST       = ' '
+*     I_STRUCTURE_NAME                  =
+*     I_BACKGROUND_ID                   = ' '
+*     I_GRID_TITLE                      =
+*     I_GRID_SETTINGS                   =
+     IS_LAYOUT                         = GD_LAYOUT
+     IT_FIELDCAT                       = GT_FLDCAT
+*     IT_EXCLUDING                      =
+*     IT_SPECIAL_GROUPS                 =
+*     IT_SORT                           =
+*     IT_FILTER                         =
+*     IS_SEL_HIDE                       =
+*     I_DEFAULT                         = 'X'
+     I_SAVE                            = 'X'
+*     IS_VARIANT                        =
+*     IT_EVENTS                         =
+*     IT_EVENT_EXIT                     =
+*     IS_PRINT                          =
+*     IS_REPREP_ID                      =
+*     I_SCREEN_START_COLUMN             = 0
+*     I_SCREEN_START_LINE               = 0
+*     I_SCREEN_END_COLUMN               = 0
+*     I_SCREEN_END_LINE                 = 0
+*     I_HTML_HEIGHT_TOP                 = 0
+*     I_HTML_HEIGHT_END                 = 0
+*     IT_ALV_GRAPHICS                   =
+*     IT_HYPERLINK                      =
+*     IT_ADD_FIELDCAT                   =
+*     IT_EXCEPT_QINFO                   =
+*     IR_SALV_FULLSCREEN_ADAPTER        =
+*   IMPORTING
+*     E_EXIT_CAUSED_BY_CALLER           =
+*     ES_EXIT_CAUSED_BY_USER            =
+    TABLES
+      T_OUTTAB                          =  GT_FINAL  "INTERNAL TABLE
+*      T_OUTTAB                          =  IT_MARC  "INTERNAL TABLE
+   EXCEPTIONS
+     PROGRAM_ERROR                     = 1
+     OTHERS                            = 2
+            .
+  IF SY-SUBRC <> 0.
+    MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+
+ENDFORM.                    " DISPLAY_ALV_REPORT
+
+
+FORM TOP_OF_PAGE .
+
+*ALV Header declarations
+  DATA: T_HEADER TYPE SLIS_T_LISTHEADER,
+        WA_HEADER TYPE SLIS_LISTHEADER,
+        T_LINE LIKE WA_HEADER-INFO,
+        LD_LINES TYPE I,
+        LD_LINESC(10) TYPE C.
+
+* Title 1
+  WA_HEADER-TYP  = 'H'.
+  WA_HEADER-INFO = 'El Araby Group:'.
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR WA_HEADER.
+
+* Title 2
+  WA_HEADER-TYP  = 'H'.
+  WA_HEADER-INFO = 'LOANS TO INTALLEMNTS'.
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR WA_HEADER.
+
+* Date S_FKDAT-HIGH
+  WA_HEADER-TYP  = 'S'.
+
+ENDFORM.                    " TOP_OF_PAGE
+DATA : L_AJDAT TYPE DATAI .
+DATA : L_AADAT TYPE DATAI .
+DATA : L_AIDAT TYPE DATAI .
+"GET DATA
+FORM GET_DATA.
+  SELECT BELNR BUKRS GJAHR AWKEY XBLNR BLART BUDAT FROM BKPF INTO CORRESPONDING FIELDS OF TABLE WT_BKPF WHERE BUDAT IN S_BUDAT AND  BUKRS IN  S_BUKRS
+  AND STGRD = '' "EXCLUDE  REVERSE AND ANY OTHER REASON
+   AND  ( BLART = 'ZH'
+       OR BLART = 'ZC'
+       OR BLART = 'ZG'
+       OR BLART = 'ZA'
+       OR BLART = 'ZE'
+       OR BLART = 'ZO'
+       OR BLART = 'ZB'
+       OR BLART = 'ZN').
+
+BREAK ABAPTEAM.
+
+    SELECT  ZUORD  PERNR FROM PA0014 INTO CORRESPONDING FIELDS OF TABLE WT_PA0014.
+
+    LOOP AT WT_BKPF INTO WA_BKPF.
+      READ TABLE WT_PA0014 INTO WA_PA0014 WITH KEY ZUORD =  WA_BKPF-AWKEY  .
+        IF SY-SUBRC NE 0.
+        GA_FINAL-BELNR = WA_BKPF-BELNR."DOC NO
+        GA_FINAL-BUKRS = WA_BKPF-BUKRS."CCODE
+        GA_FINAL-GJAHR = WA_BKPF-GJAHR."YEAR
+        GA_FINAL-AWKEY = WA_BKPF-AWKEY." refrenec key
+        GA_FINAL-BUDAT = WA_BKPF-BUDAT." POSTING DATE
+        GA_FINAL-BLART = WA_BKPF-BLART." DOC TYPE
+         APPEND GA_FINAL TO GT_FINAL.
+        ENDIF.
+        CLEAR:WA_BKPF.
+    ENDLOOP.
+
+
+SELECT  BUKRS
+        BELNR
+        GJAHR
+        SHKZG
+        WRBTR
+*       FDWBT
+        LIFNR
+        FROM  BSEG INTO TABLE WT_BSEG FOR ALL ENTRIES IN GT_FINAL WHERE
+    BELNR = GT_FINAL-BELNR AND BUKRS = GT_FINAL-BUKRS AND GJAHR = GT_FINAL-GJAHR AND SHKZG = 'S' AND BUKRS IN  S_BUKRS AND LIFNR  IN  S_LIFNR.
+*   BELNR = GT_FINAL-BELNR AND BUKRS = GT_FINAL-BUKRS AND GJAHR = GT_FINAL-GJAHR AND SHKZG = 'S' AND BUKRS IN  S_BUKRS .
+**   BELNR = GT_FINAL-BELNR AND BUKRS = GT_FINAL-BUKRS AND GJAHR = GT_FINAL-GJAHR AND FDWBT <> '0.00'."## #### #### ###### ###### ####### #### ## ####
+
+
+  SELECT  LIFNR PERNR BUKRS
+  FROM LFB1 INTO TABLE WT_LFB1 FOR ALL ENTRIES IN WT_BSEG WHERE
+  LIFNR = WT_BSEG-LIFNR AND LIFNR IN S_LIFNR AND BUKRS = WT_BSEG-BUKRS.
+
+
+LOOP AT GT_FINAL INTO GA_FINAL.
+
+  READ TABLE WT_BSEG INTO WA_BSEG WITH KEY BELNR = GA_FINAL-BELNR  BUKRS = GA_FINAL-BUKRS GJAHR = GA_FINAL-GJAHR  .
+IF WA_BSEG IS NOT INITIAL.
+  READ TABLE WT_LFB1 INTO WA_LFB1 WITH KEY LIFNR = WA_BSEG-LIFNR.
+ENDIF.
+
+
+***** M = SY-DATUM+4(2).
+******  Y  = GA_FINAL-BUDAT(4).
+*****  Y  = SY-DATUM(4).
+*****   MOve '01' to D.
+*****
+*****    LEN = STRLEN( M ).
+*****BREAK-POINT.
+
+
+*******************      M = M + 1.
+*****************    IF M < 9.
+***************** CONCATENATE '0' M INTO m.
+*****************    ENDIF.
+******  CONCATENATE Y M D  INTO Begdate.
+BEGDATE = '20160601'.
+
+CLEAR MonthlyAM.
+  IF  GA_FINAL-BLART = 'ZH' OR GA_FINAL-BLART = 'ZE' OR GA_FINAL-BLART = 'ZO' OR GA_FINAL-BLART = 'ZB'.
+    MonthlyAM = WA_BSEG-WRBTR / 24.
+*    MonthlyAM = WA_BSEG-FDWBT / 24.
+ CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+  EXPORTING
+    DATE            = BEGDATE
+    DAYS            = 00
+    MONTHS          = 23
+   SIGNUM          = '+'
+    YEARS           = 00
+ IMPORTING
+   CALC_DATE       = ENDDATE.
+    ELSEIF GA_FINAL-BLART = 'ZC'.
+  MonthlyAM = WA_BSEG-WRBTR / 60 .
+  CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+  EXPORTING
+    DATE            = BEGDATE
+    DAYS            = 00
+    MONTHS          = 59
+   SIGNUM          =  '+'
+    YEARS           = 00
+ IMPORTING
+   CALC_DATE       = ENDDATE.
+    ELSEIF GA_FINAL-BLART = 'ZG'.
+   MonthlyAM = WA_BSEG-WRBTR / 6 .
+   CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+  EXPORTING
+    DATE            = BEGDATE
+    DAYS            = '00'
+    MONTHS          = 5
+   SIGNUM          = '+'
+    YEARS           = '00'
+ IMPORTING
+   CALC_DATE       = ENDDATE.
+    ELSEIF GA_FINAL-BLART = 'ZA'.
+  MonthlyAM = WA_BSEG-WRBTR / 4 .
+  CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+  EXPORTING
+    DATE            = BEGDATE
+    DAYS            = '00'
+    MONTHS          = 3
+   SIGNUM          = '+'
+    YEARS           = '00'
+ IMPORTING
+   CALC_DATE       = ENDDATE.
+    ELSEIF GA_FINAL-BLART = 'ZN'.
+  MonthlyAM = WA_BSEG-WRBTR / 1 .
+CALL FUNCTION 'RP_CALC_DATE_IN_INTERVAL'
+  EXPORTING
+    DATE            = BEGDATE
+    DAYS            = '00'
+    MONTHS          = 0
+   SIGNUM          = '+'
+    YEARS           = '00'
+ IMPORTING
+   CALC_DATE       = ENDDATE.
+  ENDIF.
+
+*
+concatenate  BEGDATE+6(2)  BEGDATE+4(2)  BEGDATE+0(4) INTO BEGDATE.
+concatenate  ENDDATE+6(2)  ENDDATE+4(2)   ENDDATE+0(4) INTO ENDDATE.
+
+BEGDATE = '01062016'.
+
+IF WA_LFB1-PERNR IS NOT INITIAL.
+
+*BREAK ABAPTEAM.
+CALL FUNCTION 'ZBAPI_HR_CREATE_PA0014'
+  EXPORTING
+    PERSONAL            =  WA_LFB1-PERNR
+    STARTDATE           = BEGDATE
+    ENDDATE             = Enddate
+    AMOUNT              =  MonthlyAM
+    ASSNO               = GA_FINAL-AWKEY
+    1STPAYMPERIOD       = Begdate
+    REASON              =  GA_FINAL-BLART
+ IMPORTING
+   FLAG                = FLAG
+ TABLES
+   LT_MSG              = LT_MSG.
+
+*         CALL FUNCTION 'HR_EMPLOYEE_DEQUEUE'
+*        EXPORTING
+*          number = WA_LFB1-PERNR.
+*ENDIF.
+
+ELSE.
+
+  WA_VENDORS-LIFNR = WA_LFB1-LIFNR.
+  append WA_VENDORS TO WT_VENDORS.
+
+  CLEAR WA_VENDORS.
+
+ENDIF.
+CLEAR : BEGDATE  ,enddate.
+
+CLEAR :GA_FINAL,WA_BSEG,WA_LFB1,MonthlyAM.
+CLEAR : BEGDATE  ,enddate,M,D,M.
+ENDLOOP.
+
+
+  ENDFORM.
+FORM VENDORS.
+  WRITE 'Done'.
+* WRITE :/ 'LIST OF VENDORS WHICH DO NOT HAVE PERSONAL NUMBER'.
+*  LOOP AT WT_VENDORS INTO WA_VENDORS.
+*
+*WRITE : /  WA_VENDORS-LIFNR.
+*  ENDLOOP.
+*
+*  SELECT LIFNR INTO CORRESPONDING FIELDS OF TABLE wt_vendors_ERROR FROM LFB1 WHERE
+*     LIFNR  BETWEEN '1300000000' AND '1399999999'.
+*
+*  IF SY-SUBRC = 0 .
+*    WRITE :/ 'Be Noticed that there is a lsit of Vendors outside rage of 1300000000 : 1399999999'.
+*LOOP AT  WT_VENDORS_ERROR INTO WA_VENDORS_ERROR WHERE LIFNR  = S_LIFNR-LOW OR LIFNR  = S_LIFNR-HIGH.
+**IF SY-SUBRC NE 0.
+*WRITE : / WA_VENDORS_ERROR-LIFNR.
+**ENDIF.
+*
+*ENDLOOP.
+*  ENDIF.
+
+  ENDFORM.
+  FORM CONVERT_DATE USING TIMESTAMP   TYPE  AIDAT
+                        DATE_LOCAL TYPE  DATAI .
+  CALL FUNCTION 'TZ_GLOBAL_TO_LOCAL'
+    EXPORTING
+*     DATE_GLOBAL               = '00000000'
+      TIMESTAMP_GLOBAL          = TIMESTAMP
+      TIMEZONE                  = 'EGYPT'
+*     TIME_GLOBAL               = '000000'
+   IMPORTING
+     DATE_LOCAL                = DATE_LOCAL
+*     TIMESTAMP_LOCAL           =
+*     TIME_LOCAL                =
+   EXCEPTIONS
+     NO_PARAMETERS             = 1
+     TOO_MANY_PARAMETERS       = 2
+     CONVERSION_ERROR          = 3
+     OTHERS                    = 4
+            .
+  IF SY-SUBRC = 3 .
+    SKIP .
+* MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+*         WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  ENDIF.
+ENDFORM .                    "CONVERT_DATE

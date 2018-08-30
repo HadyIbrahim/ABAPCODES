@@ -1,0 +1,15 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZHR_FAST_ABS_ATT_SS
+*&---------------------------------------------------------------------*
+
+SELECTION-SCREEN BEGIN OF BLOCK B1 WITH FRAME TITLE TEXT-001.
+
+PARAMETERS :M_FNAME(70) OBLIGATORY.
+
+parameters: P_ATT type c radiobutton group sel DEFAULT 'X'.
+parameters: P_ABS type c radiobutton group sel.
+
+
+SELECTION-SCREEN SKIP.
+
+SELECTION-SCREEN END OF BLOCK B1.

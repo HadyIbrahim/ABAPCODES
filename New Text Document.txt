@@ -1,0 +1,655 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_HR_RESTAURANT_REPORT_FORMS
+*&---------------------------------------------------------------------*
+*&---------------------------------------------------------------------*
+*&  Include           ZR_HR_PAYROLL_FORMS
+*&---------------------------------------------------------------------*
+
+FORM GET_Data2.
+
+
+
+
+
+  CALL FUNCTION 'FIMA_DAYS_AND_MONTHS_AND_YEARS'
+    EXPORTING
+      I_DATE_FROM          =  IN_DATE-LOW
+*    I_KEY_DAY_FROM       =
+      I_DATE_TO            =  IN_DATE-HIGH
+*    I_KEY_DAY_TO         =
+*    I_FLG_SEPARATE       = ' '
+   IMPORTING
+      E_DAYS               = NUM_OF_DAYS
+*    E_MONTHS             =
+*    E_YEARS              =
+            .
+  WA_DATES-D_ITEM = IN_DATE-LOW.
+  APPEND WA_DATES TO WT_DATES.
+
+
+  DO NUM_OF_DAYS TIMES.
+
+    CALL FUNCTION 'HR_99S_DATE_PLUS_TIME_UNIT'
+      EXPORTING
+        I_IDATE    = WA_DATES-D_ITEM
+        I_TIME     = '1'
+        I_TIMEUNIT = '1'
+      IMPORTING
+        O_IDATE    = WA_DATES-D_ITEM.
+
+    APPEND WA_DATES TO WT_DATES.
+*    CLEAR WA_DATES.
+  ENDDO.
+
+  DATA: PDATE TYPE SY-DATUM.
+  DATA: TIME1 TYPE LTIME VALUE '090000'.
+  DATA: TIME2 TYPE LTIME VALUE '050000'.
+  DATA: IA_TAB2 LIKE LINE OF IT_TAB.
+
+  LOOP AT WT_DATES INTO WA_DATES.
+    CALL FUNCTION 'HR_99S_DATE_PLUS_TIME_UNIT'
+      EXPORTING
+        I_IDATE    = WA_DATES-D_ITEM
+        I_TIME     = '1'
+        I_TIMEUNIT = '1'
+      IMPORTING
+        O_IDATE    = PDATE.
+
+    SELECT *  FROM ZHR_REST_ATT INTO TABLE IT_TAB
+                WHERE CHECKDATE = WA_DATES-D_ITEM
+                AND   CHECKTIME >= TIME1.
+
+    SELECT *  FROM ZHR_REST_ATT INTO TABLE IT_TAB2
+                WHERE CHECKDATE = PDATE
+                AND   CHECKTIME <= TIME2.
+
+    APPEND LINES OF IT_TAB2 TO IT_TAB.
+
+    SORT IT_TAB BY CHECKDATE ASCENDING TERMINAL ASCENDING .
+
+
+    LOOP AT IT_TAB INTO IA_TAB.
+      TRANSLATE IA_TAB-TERMINAL TO UPPER CASE.
+      WA_WNUM-DEVICE = IA_TAB-TERMINAL.
+      WA_WNUM-DATE = WA_DATES-D_ITEM.
+      WA_WNUM-NUM = 0.
+
+      LOOP AT IT_TAB INTO IA_TAB2.
+        TRANSLATE IA_TAB2-TERMINAL TO UPPER CASE.
+        IF IA_TAB-TERMINAL EQ IA_TAB2-TERMINAL.
+          WA_WNUM-NUM = WA_WNUM-NUM + 1.
+        ENDIF.
+      ENDLOOP.
+      APPEND WA_WNUM TO WT_WNUM.
+      DELETE IT_TAB WHERE TERMINAL EQ IA_TAB-TERMINAL AND CHECKDATE EQ IA_TAB-CHECKDATE.
+      TRANSLATE IA_TAB-TERMINAL TO LOWER CASE.
+      DELETE IT_TAB WHERE TERMINAL EQ IA_TAB-TERMINAL AND CHECKDATE EQ IA_TAB-CHECKDATE.
+    ENDLOOP.
+
+
+
+  ENDLOOP.
+ENDFORM.                                                    "GET_Data2
+
+*&---------------------------------------------------------------------*
+*&      Form  GET_Data
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM GET_Data.
+
+
+
+
+
+
+
+  CALL FUNCTION 'FIMA_DAYS_AND_MONTHS_AND_YEARS'
+    EXPORTING
+      I_DATE_FROM          =  IN_DATE-LOW
+*    I_KEY_DAY_FROM       =
+      I_DATE_TO            =  IN_DATE-HIGH
+*    I_KEY_DAY_TO         =
+*    I_FLG_SEPARATE       = ' '
+   IMPORTING
+      E_DAYS               = NUM_OF_DAYS
+*    E_MONTHS             =
+*    E_YEARS              =
+            .
+  WA_DATES-D_ITEM = IN_DATE-LOW.
+  APPEND WA_DATES TO WT_DATES.
+
+
+  DO NUM_OF_DAYS TIMES.
+
+    CALL FUNCTION 'HR_99S_DATE_PLUS_TIME_UNIT'
+      EXPORTING
+        I_IDATE    = WA_DATES-D_ITEM
+        I_TIME     = '1'
+        I_TIMEUNIT = '1'
+      IMPORTING
+        O_IDATE    = WA_DATES-D_ITEM.
+
+    APPEND WA_DATES TO WT_DATES.
+*    CLEAR WA_DATES.
+  ENDDO.
+
+
+
+
+  LOOP AT WT_DATES INTO WA_DATES.
+
+    LOOP AT ZT_PERSDATA  INTO ZA_PERSDATA.
+      SELECT *  FROM ZHR_REST_ATT INTO TABLE WT_REST_ATT
+                 WHERE   PERNR = ZA_PERSDATA-PERNR
+                 AND     CHECKDATE = WA_DATES-D_ITEM.
+
+      LOOP AT WT_REST_ATT INTO WA_REST_ATT.
+        LOOP AT WT_REST_ATT INTO WA_REST_ATT2.
+          IF WA_REST_ATT2-CHECKTIME ne WA_REST_ATT-CHECKTIME .
+
+
+
+            CALL FUNCTION 'SD_CALC_DURATION_FROM_DATETIME'
+              EXPORTING
+                i_date1 = WA_REST_ATT2-CHECKDATE
+                i_time1 = WA_REST_ATT2-CHECKTIME
+                i_date2 = WA_REST_ATT-CHECKDATE
+                i_time2 = WA_REST_ATT-CHECKTIME
+              IMPORTING
+                e_tdiff = v_diff.
+
+            IF v_diff <  '001000' or v_diff > '050000'.
+              DELETE WT_REST_ATT WHERE CHECKTIME eq WA_REST_ATT2-CHECKTIME.
+
+            ENDIF.
+
+
+          ENDIF.
+
+        ENDLOOP.
+      ENDLOOP.
+
+
+
+
+
+      DESCRIBE TABLE WT_REST_ATT  LINES REST_ATT_LENGTH.
+      IF ( P60_MORE EQ 'X' OR P60_MORE EQ 'x' ) AND REST_ATT_LENGTH > 1 AND  ZA_PERSDATA-PERNR NE ''.
+        LOOP AT WT_REST_ATT INTO WA_REST_ATT.
+
+          WA_FINAL-PERNR     = ZA_PERSDATA-PERNR.
+          WA_FINAL-NAME      = ZA_PERSDATA-NAME.
+          WA_FINAL-COMPANY   = ZA_PERSDATA-COMPANY.
+          WA_FINAL-PERSAREA  = ZA_PERSDATA-PERSAREA.
+          WA_FINAL-TERMINAL  = WA_REST_ATT-TERMINAL.
+          WA_FINAL-CHECKDATE = WA_REST_ATT-CHECKDATE.
+          WA_FINAL-CHECKTIME = WA_REST_ATT-CHECKTIME.
+          WA_FINAL-RESON     = 'œŒÊ· √ﬂ —  „‰  „—Â ··„ÿ⁄„'.
+          SELECT SINGLE NAME1 FROM T500P INTO WA_FINAL-PERSAREA_NAME WHERE PERSA = ZA_PERSDATA-PERSAREA AND MOLGA = '99'.
+          SELECT SINGLE BUTXT FROM T001 INTO WA_FINAL-COMPANY_NAME WHERE BUKRS =  ZA_PERSDATA-COMPANY.
+          APPEND WA_FINAL TO  WT_FINAL.
+          CLEAR:WA_FINAL,WA_REST_ATT.
+        ENDLOOP.
+
+      ENDIF.
+    ENDLOOP.
+
+
+*
+*
+*
+* SELECT *  FROM ZHR_REST_ATT INTO TABLE IT_TAB
+*            WHERE CHECKDATE = WA_DATES-D_ITEM.
+*
+*  SORT IT_TAB BY PERNR.
+*  IT_TAB1 = IT_TAB.
+*
+*  DELETE ADJACENT DUPLICATES FROM IT_TAB COMPARING PERNR.
+*  DESCRIBE TABLE IT_TAB  LINES TAB_LENGTH.
+*
+*  LOOP AT IT_TAB INTO IA_TAB.
+*
+*    SELECT *  FROM ZHR_REST_ATT INTO TABLE WT_REST_ATT
+*              WHERE   PERNR = IA_TAB-PERNR
+*              AND     CHECKDATE = WA_DATES-D_ITEM.
+*
+*    READ TABLE  ZT_PERSDATA  INTO ZA_PERSDATA WITH  KEY PERNR = IA_TAB-PERNR.
+*    DESCRIBE TABLE WT_REST_ATT  LINES REST_ATT_LENGTH.
+*
+*    IF ( P60_MORE EQ 'X' OR P60_MORE EQ 'x' ) AND REST_ATT_LENGTH > 1 AND  ZA_PERSDATA-PERNR NE '' .
+*
+*
+*      LOOP AT WT_REST_ATT INTO WA_REST_ATT.
+*
+*        WA_FINAL-PERNR     = ZA_PERSDATA-PERNR.
+*        WA_FINAL-NAME      = ZA_PERSDATA-NAME.
+*        WA_FINAL-COMPANY   = ZA_PERSDATA-COMPANY.
+*        WA_FINAL-PERSAREA  = ZA_PERSDATA-PERSAREA.
+*        WA_FINAL-TERMINAL  = WA_REST_ATT-TERMINAL.
+*        WA_FINAL-CHECKDATE = WA_REST_ATT-CHECKDATE.
+*        WA_FINAL-CHECKTIME = WA_REST_ATT-CHECKTIME.
+*        WA_FINAL-RESON     = 'œŒÊ· √ﬂ —  „‰  „—Â ··„ÿ⁄„'.
+*        SELECT SINGLE NAME1 FROM T500P INTO WA_FINAL-PERSAREA_NAME WHERE PERSA = ZA_PERSDATA-PERSAREA AND MOLGA = '99'.
+*        SELECT SINGLE BUTXT FROM T001 INTO WA_FINAL-COMPANY_NAME WHERE BUKRS =  ZA_PERSDATA-COMPANY.
+*        APPEND WA_FINAL TO  WT_FINAL.
+*        CLEAR:WA_FINAL,WA_REST_ATT.
+*
+*      ENDLOOP.
+*
+*    ENDIF.
+*
+*
+*
+*   IF MISSION EQ 'X' OR MISSION EQ 'x' .
+*
+*
+*   SELECT * FROM PA2002 INTO TABLE WT_PA2002
+*            WHERE PERNR EQ IA_TAB-PERNR
+*            AND   BEGDA <= WA_DATES-D_ITEM
+*            AND   ENDDA >= WA_DATES-D_ITEM
+*            AND ( SUBTY EQ '0410'  OR SUBTY EQ '0435' OR SUBTY EQ '0490' )
+*            AND   ABWTG EQ '1.00'.
+*
+*     DESCRIBE TABLE WT_PA2002 LINES PA2002_LENGTH.
+*
+*     IF PA2002_LENGTH > 0.
+*
+*        WA_FINAL-PERNR     = ZA_PERSDATA-PERNR.
+*        WA_FINAL-NAME      = ZA_PERSDATA-NAME.
+*        WA_FINAL-COMPANY   = ZA_PERSDATA-COMPANY.
+*        WA_FINAL-PERSAREA  = ZA_PERSDATA-PERSAREA.
+*        WA_FINAL-TERMINAL  = IA_TAB-TERMINAL.
+*        WA_FINAL-CHECKDATE = IA_TAB-CHECKDATE.
+*        WA_FINAL-CHECKTIME = IA_TAB-CHECKTIME.
+*        WA_FINAL-RESON     = '„”Ã· „«„Ê—Ì… ⁄·Ï «·‰Ÿ«„ ÿÊ«· «·ÌÊ„ Ê ‰«Ê· ÊÃ»… ›Ï «·„ÿ⁄„ '.
+*        SELECT SINGLE NAME1 FROM T500P INTO WA_FINAL-PERSAREA_NAME WHERE PERSA = ZA_PERSDATA-PERSAREA AND MOLGA = '99'.
+*        SELECT SINGLE BUTXT FROM T001 INTO WA_FINAL-COMPANY_NAME WHERE BUKRS =  ZA_PERSDATA-COMPANY.
+*        APPEND WA_FINAL TO  WT_FINAL.
+*
+*
+*     ENDIF.
+*
+*
+*   ENDIF.
+*
+*******************************************************************************************************************
+*
+*   IF ABSENCE EQ 'X' OR ABSENCE EQ 'x' .
+*
+*
+*   SELECT * FROM PA2001 INTO TABLE WT_PA2001
+*            WHERE PERNR EQ IA_TAB-PERNR
+*            AND   BEGDA <= WA_DATES-D_ITEM
+*            AND   ENDDA >= WA_DATES-D_ITEM
+*            AND   ABWTG EQ '1.00'.
+*
+*     DESCRIBE TABLE WT_PA2001 LINES PA2001_LENGTH.
+*
+*     IF PA2001_LENGTH > 0.
+*
+*        WA_FINAL-PERNR     = ZA_PERSDATA-PERNR.
+*        WA_FINAL-NAME      = ZA_PERSDATA-NAME.
+*        WA_FINAL-COMPANY   = ZA_PERSDATA-COMPANY.
+*        WA_FINAL-PERSAREA  = ZA_PERSDATA-PERSAREA.
+*        WA_FINAL-TERMINAL  = IA_TAB-TERMINAL.
+*        WA_FINAL-CHECKDATE = IA_TAB-CHECKDATE.
+*        WA_FINAL-CHECKTIME = IA_TAB-CHECKTIME.
+*        WA_FINAL-RESON     = '„”Ã· €Ì«» ⁄·Ï «·‰Ÿ«„ ÿÊ«· «·ÌÊ„ Ê ‰«Ê· ÊÃ»… ›Ï «·„ÿ⁄„ '.
+*        SELECT SINGLE NAME1 FROM T500P INTO WA_FINAL-PERSAREA_NAME WHERE PERSA = ZA_PERSDATA-PERSAREA AND MOLGA = '99'.
+*        SELECT SINGLE BUTXT FROM T001 INTO WA_FINAL-COMPANY_NAME WHERE BUKRS =  ZA_PERSDATA-COMPANY.
+*        APPEND WA_FINAL TO  WT_FINAL.
+*
+*
+*     ENDIF.
+*
+*
+*   ENDIF.
+*
+*
+*
+
+
+
+    CLEAR:IA_TAB,REST_ATT_LENGTH,ZA_PERSDATA.
+*  ENDLOOP.
+*
+*
+*
+
+
+
+
+
+  ENDLOOP.
+
+  SORT WT_FINAL ASCENDING BY PERNR CHECKDATE.
+
+
+
+
+
+
+**************************************************************************************************
+* LOOP AT IT_TAB INTO IA_TAB .
+*  IF IA_TAB-PERNR = TEMP_PERNR.
+*    APPEND IA_TAB TO IT_TAB1.
+*ELSE.
+*  TEMP_PERNR = IA_TAB-PERNR.
+*ENDIF.
+*
+*ENDLOOP.
+
+
+****************************************************************************************************
+*LOOP AT ZT_PERSDATA INTO ZA_PERSDATA.
+*
+** p05_p60  ⁄œ„ œŒÊ· «·„ÿ⁄„
+*
+**IF p60_MORE EQ 'X' OR p60_MORE EQ 'x' OR p10_p60 EQ 'X' OR p10_p60 EQ 'x'.
+*
+*
+*SELECT *  FROM ZHR_REST_ATT INTO TABLE WT_REST_ATT
+*          WHERE PERNR = ZA_PERSDATA-PERNR
+*          AND   CHECKDATE = IN_DATE.
+*
+**SELECT * FROM TEVEN INTO TABLE WT_INTEVEN
+**         WHERE PERNR = PERNR-PERNR
+**         AND   LDATE = IN_DATE
+**         AND   SATZA = 'P10'.
+**
+**
+**SELECT * FROM TEVEN INTO TABLE WT_OUTTEVEN
+**         WHERE PERNR = PERNR-PERNR
+**         AND   LDATE = IN_DATE
+**         AND   SATZA = 'P20'.
+*
+*
+*DESCRIBE TABLE WT_REST_ATT  LINES REST_ATT_LENGTH.
+**DESCRIBE TABLE WT_INTEVEN   LINES INTEVEN.
+**DESCRIBE TABLE WT_OUTTEVEN  LINES OUTTEVEN.
+*
+*
+*IF REST_ATT_LENGTH > 1 .
+*
+*LOOP AT WT_REST_ATT INTO WA_REST_ATT.
+*
+*      WA_FINAL-PERNR     = ZA_PERSDATA-PERNR.
+*      WA_FINAL-NAME      = ZA_PERSDATA-NAME.
+*      WA_FINAL-COMPANY   = ZA_PERSDATA-COMPANY.
+*      WA_FINAL-PERSAREA  = ZA_PERSDATA-PERSAREA.
+*      WA_FINAL-TERMINAL  = WA_REST_ATT-TERMINAL.
+*      WA_FINAL-CHECKDATE = WA_REST_ATT-CHECKDATE.
+*      WA_FINAL-CHECKTIME = WA_REST_ATT-CHECKTIME.
+*      WA_FINAL-RESON     = 'œŒÊ· √ﬂ —  „‰  „—Â ··„ÿ⁄„'.
+*     SELECT SINGLE NAME1 FROM T500P INTO WA_FINAL-PERSAREA_NAME WHERE PERSA = ZA_PERSDATA-PERSAREA AND MOLGA = '99'.
+*     SELECT SINGLE BUTXT FROM T001 INTO WA_FINAL-COMPANY_NAME WHERE BUKRS =  ZA_PERSDATA-COMPANY.
+*     APPEND WA_FINAL TO  WT_FINAL.
+*     CLEAR:WA_FINAL, REST_ATT_LENGTH.
+*
+*ENDLOOP.
+*
+**ELSEIF REST_ATT_LENGTH EQ 0 AND INTEVEN NE 0 AND OUTTEVEN NE 0 .
+**
+**
+**
+**      WA_FINAL-PERNR     = PERNR-PERNR.
+**      WA_FINAL-NAME      = PERNR-SNAME.
+**      WA_FINAL-COMPANY   = PERNR-BUKRS.
+**      WA_FINAL-TERMINAL  = '---'.
+***      WA_FINAL-CHECKDATE = WA_REST_ATT-CHECKDATE.
+***      WA_FINAL-CHECKTIME = WA_REST_ATT-CHECKTIME.
+**      WA_FINAL-RESON     = 'Õ÷Ê—  Ê ⁄œ„ œŒÊ·  „ÿ⁄„'.
+**
+**     APPEND WA_FINAL TO  WT_FINAL.
+**     CLEAR:WA_FINAL.
+*
+*
+*ENDIF.
+*
+**ENDIF.
+*
+*ENDLOOP.
+****************************************************************************************************************************************
+
+
+
+
+
+Endform.                    "GET_Data
+
+
+
+
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BUIILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM BUIILD_FIELDCATALOG.
+
+
+  PERFORM :   FILL_FLDCAT USING 1   'PERNR'                              '—ﬁ„ «·”‹‹‹‹‹«»'(001)  '' ''  'L' '' '20',
+              FILL_FLDCAT USING 2   'NAME'                               '«”„ «·⁄«„·'(003) '' '' 'C' '' '50',
+              FILL_FLDCAT USING 3   'COMPANY'                            'ﬂÊœ «·‘—ﬂÂ'(004) 'X' '' 'L' '' '50',
+              FILL_FLDCAT USING 4   'COMPANY_NAME'                        '«·‘—ﬂÂ'(004) 'X' '' 'L' '' '50',
+              FILL_FLDCAT USING 5   'PERSAREA'                           'ﬂÊœ «·„‰ÿﬁÂ'(005)      'X' '' 'C' '' '50',
+              FILL_FLDCAT USING 6   'PERSAREA_NAME'                      '«·„‰ÿﬁÂ'(005)      'X' '' 'C' '' '50',
+              FILL_FLDCAT USING 7   'TERMINAL'                           '—ﬁ„ «·”«⁄Â'(006)   'X' '' 'C' '' '50',
+              FILL_FLDCAT USING 8   'CHECKDATE'                          '» «—ÌŒ'(007)      'X' '' 'C' '' '50',
+              FILL_FLDCAT USING 9   ' CHECKTIME'                         '›Ì «·Êﬁ '(008)      'X' '' 'C' '' '50',
+              FILL_FLDCAT USING 10   ' RESON'                             '«·”»»'(009)      'X' '' 'C' '' '50'.
+
+
+
+
+
+ENDFORM.                    "BUIILD_FIELDCATALOG
+
+
+
+*&---------------------------------------------------------------------*
+*&      Form  BUIILD_FIELDCATALOG2
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+FORM BUIILD_FIELDCATALOG2.
+
+
+  PERFORM :   FILL_FLDCAT USING 1   'DATE'                              '«· «—ÌŒ'(001)  '' ''  'L' '' '20',
+              FILL_FLDCAT USING 2   'DEVICE'                               '—ﬁ„ «·”«⁄Â'(003) '' '' 'C' '' '50',
+              FILL_FLDCAT USING 3   'NUM'                            '⁄œœ «·ÊÃ»« '(004) 'X' '' 'L' '' '50'.
+
+
+
+
+
+ENDFORM.                 "BUIILD_FIELDCATALOG
+*&---------------------------------------------------------------------*
+*&      Form  FILL_FLDCAT
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+*      -->P_1      text
+*      -->P_0396   text
+*      -->P_0397   text
+*      -->P_0398   text
+*----------------------------------------------------------------------*
+FORM FILL_FLDCAT  USING P TYPE I
+                        P_FLD
+                        P_TXT
+                        P_SUM
+                        P_KEY
+                        P_JUST
+                        P_ZERO
+                        P_LEN.
+  CLEAR GS_FLDCAT.
+  GS_FLDCAT-COL_POS = P.
+  GS_FLDCAT-FIELDNAME = P_FLD.
+  GS_FLDCAT-TABNAME   = 'ITAB'.
+  GS_FLDCAT-SELTEXT_L = P_TXT.
+  GS_FLDCAT-DO_SUM    = P_SUM.
+  GS_FLDCAT-KEY       = P_KEY.
+  GS_FLDCAT-JUST      = P_JUST.
+  GS_FLDCAT-NO_ZERO   = P_ZERO.
+  GS_FLDCAT-OUTPUTLEN = P_LEN.
+  APPEND GS_FLDCAT TO GT_FLDCAT.
+ENDFORM.                    " FILL_FLDCAT
+
+*&---------------------------------------------------------------------*
+*&      Form  BUILD_LAYOUT
+*&---------------------------------------------------------------------*
+*       Build layout for ALV grid report
+*----------------------------------------------------------------------*
+form build_layout.
+  gd_layout-no_input          = 'X'.
+  gd_layout-colwidth_optimize = 'X'.
+*  gd_layout-totals_text       = 'Totals'(999).
+
+*  gd_layout-totals_only        = 'X'.
+*  gd_layout-f2code            = 'DISP'.  "Sets fcode for when double
+*                                         "click(press f2)
+*  gd_layout-zebra             = 'X'.
+*  gd_layout-group_change_edit = 'X'.
+  gd_layout-header_text       = 'hello'.
+endform.                    " BUILD_LAYOUT
+
+*&---------------------------------------------------------------------*
+*&      Form  DISPLAY_ALV_REPORT
+*&---------------------------------------------------------------------*
+*       Display report using ALV grid
+*----------------------------------------------------------------------*
+form display_alv_report.
+  gd_repid = sy-repid.
+  call function 'REUSE_ALV_GRID_DISPLAY'
+       exporting
+            i_callback_program      = gd_repid
+            i_callback_top_of_page   = 'TOP-OF-PAGE'  "see FORM
+*            i_callback_user_command = 'USER_COMMAND'
+*            i_grid_title           = outtext
+            is_layout               =   gd_layout
+            IT_FIELDCAT               = GT_FLDCAT
+*            it_special_groups       = gd_tabgroup
+*            IT_EVENTS                = GT_XEVENTS
+            i_save                  = 'X'
+*            is_variant              = z_template
+
+       tables
+            t_outtab                = WT_FINAL
+       exceptions
+            program_error           = 1
+            others                  = 2.
+  if sy-subrc <> 0.
+    MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  endif.
+endform.                    " DISPLAY_ALV_REPORT
+
+*&---------------------------------------------------------------------*
+*&      Form  display_alv_report2
+*&---------------------------------------------------------------------*
+*       text
+*----------------------------------------------------------------------*
+form display_alv_report2.
+  gd_repid = sy-repid.
+  call function 'REUSE_ALV_GRID_DISPLAY'
+       exporting
+            i_callback_program      = gd_repid
+            i_callback_top_of_page   = 'TOP-OF-PAGE'  "see FORM
+*            i_callback_user_command = 'USER_COMMAND'
+*            i_grid_title           = outtext
+            is_layout               =   gd_layout
+            IT_FIELDCAT               = GT_FLDCAT
+*            it_special_groups       = gd_tabgroup
+*            IT_EVENTS                = GT_XEVENTS
+            i_save                  = 'X'
+*            is_variant              = z_template
+
+       tables
+            t_outtab                = WT_WNUM
+       exceptions
+            program_error           = 1
+            others                  = 2.
+  if sy-subrc <> 0.
+    MESSAGE ID SY-MSGID TYPE SY-MSGTY NUMBER SY-MSGNO
+            WITH SY-MSGV1 SY-MSGV2 SY-MSGV3 SY-MSGV4.
+  endif.
+endform.                    " DISPLAY_ALV_REPORT
+*&---------------------------------------------------------------------*
+*&                Form  top_of_page
+*&---------------------------------------------------------------------*
+*               Prepare Header String                                  *
+*----------------------------------------------------------------------*
+
+FORM TOP-OF-PAGE.
+
+*ALV Header declarations
+  DATA: T_HEADER TYPE SLIS_T_LISTHEADER,
+        WA_HEADER TYPE SLIS_LISTHEADER,
+        T_LINE LIKE WA_HEADER-INFO,
+        LD_LINES TYPE I,
+        LD_LINESC(10) TYPE C.
+
+* Title 1
+  WA_HEADER-TYP  = 'H'.
+  WA_HEADER-INFO = 'œŒÊ· «·„ÿ⁄„'(045).
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR WA_HEADER.
+
+
+* Date
+  WA_HEADER-TYP  = 'S'.
+  WA_HEADER-KEY = ' «—ÌŒ «’œ«— «· ﬁ—Ì—:'(055).
+  CONCATENATE  SY-DATUM+6(2) '/'
+               SY-DATUM+4(2) '/'
+               SY-DATUM(4)'.'
+  INTO WA_HEADER-INFO.   "todays date
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR: WA_HEADER.
+
+* Time
+  WA_HEADER-TYP  = 'S'.
+  WA_HEADER-KEY = 'Êﬁ  «’œ«— «· ﬁ—Ì—:'(056).
+  CONCATENATE  SY-uzeit(2)  ':'
+               SY-uzeit+2(2) ':'
+               SY-uzeit+4(2)  '.'
+                INTO WA_HEADER-INFO.   "todays date
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR: WA_HEADER.
+
+*User
+  WA_HEADER-TYP  = 'S'.
+  WA_HEADER-KEY = '«’œ— »Ê«”ÿÂ:'(057).
+  CONCATENATE sy-uname '.' into WA_HEADER-INFO.
+  APPEND WA_HEADER TO T_HEADER.
+  CLEAR: WA_HEADER.
+
+
+
+*  WA_HEADER-TYP  = 'S'.
+*  WA_HEADER-KEY = 'In period :'(058).
+*  CONCATENATE payroll-inter-versc-inper '.' into WA_HEADER-INFO.
+*  APPEND WA_HEADER TO T_HEADER.
+*  CLEAR: WA_HEADER.
+*
+*  WA_HEADER-TYP  = 'S'.
+*  WA_HEADER-KEY = 'For period:'(059).
+*  CONCATENATE payroll-inter-versc-fpper '.' into WA_HEADER-INFO.
+*  APPEND WA_HEADER TO T_HEADER.
+*  CLEAR: WA_HEADER.
+*
+*  WA_HEADER-TYP  = 'S'.
+*  WA_HEADER-KEY = 'Pay date:'(059).
+*  CONCATENATE payroll-inter-versc-paydt '.' into WA_HEADER-INFO.
+*  APPEND WA_HEADER TO T_HEADER.
+*  CLEAR: WA_HEADER.
+
+  CALL FUNCTION 'REUSE_ALV_COMMENTARY_WRITE'
+    EXPORTING
+      i_logo             = 'ENJOYSAP_LOGO'
+      it_list_commentary = T_HEADER.
+
+ENDFORM.                    "top_of_page

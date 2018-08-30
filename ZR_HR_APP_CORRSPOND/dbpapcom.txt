@@ -1,0 +1,28 @@
+*----- This file is automatically included by the database program -----
+DATA: BEGIN OF COMMON PART $DBPAPCOM. "for database PAP
+
+*----- table with requested infotypes ----------------------------------
+DATA: BEGIN OF $RINFO$ OCCURS 20,
+        NUMBER LIKE PSKEY-INFTY,
+        NAME(20),
+        MODE(01),
+        BEGDA TYPE D,
+        ENDDA TYPE D,
+      END OF $RINFO$.
+
+*----- switches --------------------------------------------------------
+DATA: PAP_SW_IGNORELOCKEDRECORDS   VALUE 'Y',
+      PAP_SW_ENQUEUEAPLNO          VALUE 'N',
+      PAP_SW_FOUND,
+      PAP_SW_AUTH_SKIPPED_RECORD,
+      PAP_SY_TABIX LIKE SY-TABIX.
+
+*----- derivated time intervals ----------------------------------------
+DATA: PA$BEGDA LIKE PAPL-BEGDA,     "data selection intervall   derivate
+      PA$ENDDA LIKE PAPL-ENDDA,     "from selection-screen-input
+      PA$BEGPS LIKE PAPL-BEGDA,     "person selection intervall derivate
+      PA$ENDPS LIKE PAPL-ENDDA.     "from selection-screen-input
+
+DATA: END OF COMMON PART. "$DBPAPCOM
+
+INCLUDE DBPAPMAC.   "Makros

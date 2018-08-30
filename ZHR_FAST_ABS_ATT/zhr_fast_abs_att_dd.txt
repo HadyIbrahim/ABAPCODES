@@ -1,0 +1,86 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZHR_FAST_ABS_ATT_DD
+*&---------------------------------------------------------------------*
+
+
+DATA: GT_BDC TYPE STANDARD TABLE OF BDCDATA,
+      GS_BDC TYPE BDCDATA,
+
+      GT_MSG TYPE STANDARD TABLE OF BDCMSGCOLL,
+      LT_MSG TYPE STANDARD TABLE OF BDCMSGCOLL,
+      GS_MSG TYPE BDCMSGCOLL.
+
+DATA:GS_OPT TYPE CTU_PARAMS.
+
+
+*-----------------------------------------------------------------------*
+*              A L V   D E C L A R A T I O N S                          *
+*-----------------------------------------------------------------------*
+type-pools: slis.
+
+DATA: GT_FLDCAT TYPE STANDARD TABLE OF SLIS_FIELDCAT_ALV,
+      GS_FLDCAT TYPE SLIS_FIELDCAT_ALV.
+data : GT_RETRO_MONTH_DIFF TYPE STANDARD TABLE OF HR99LRET_S_MONTH_DIFF.
+data : GS_RETRO_MONTH_DIFF TYPE  HR99LRET_S_MONTH_DIFF.
+DATA : LGART TYPE STANDARD TABLE OF SEL_LGART.
+*ALV data declarations
+data: fieldcatalog type slis_t_fieldcat_alv with header line,
+      gd_tab_group type slis_t_sp_group_alv,
+      gd_layout    type slis_layout_alv,
+      gt_top_of_page      TYPE slis_formname VALUE 'TOP_OF_PAGE',
+      gt_top_of_list      TYPE slis_formname VALUE 'TOP_OF_LIST',
+      gd_repid     like sy-repid,
+       i_lines LIKE sy-tabix.
+
+
+
+
+
+TYPE-POOLS: TRUXS.
+TYPES: BEGIN OF GTY_FILE,
+*         pernr(10) ,
+         pernr TYPE P0001-PERNR,
+         INFO_TYPE TYPE  CHOIC,
+         SUBTYPE TYPE P0001-SUBTY,
+         START_DATE TYPE P0001-BEGDA ,
+*         START_DATE TYPE SY-DATUM ,
+         END_DATE   TYPE P0001-ENDDA,
+         START_TIME TYPE  BEGUZ,
+         END_TIME TYPE  ENDUZ,
+*         ATT_ABS_TYPE TYPE AWART,
+*         ATT_HOURS  TYPE ATTHR,
+      END OF GTY_FILE.
+TYPES : BEGIN OF GTY_LOG,
+  MSG_TYPE TYPE  BAPI_MTYPE,
+  PERNR TYPE  P0001-PERNR,
+  DATE TYPE SY-DATUM,
+  MESSAGE TYPE BAPI_MSG,
+  END OF GTY_LOG.
+
+TYPES: BEGIN OF GTY_ERR.
+INCLUDE TYPE GTY_FILE.
+TYPES: MSG(100),
+       END OF GTY_ERR.
+
+DATA : TIT TYPE TDTITLE.
+
+*DATA: GT_FINAL TYPE STANDARD TABLE OF GTY_FILE,ZSD_PLAN2
+DATA: GT_FINAL TYPE TABLE OF GTY_FILE,
+      GS_FINAL TYPE GTY_FILE,
+      GS       TYPE GTY_FILE,
+
+      GT_LOG TYPE TABLE OF GTY_LOG,
+      GS_LOG TYPE GTY_LOG.
+
+DATA : WT_ZHR_SMS TYPE  TABLE OF ZHR_SMS WITH HEADER LINE ,
+       WA_ZHR_SMS LIKE LINE OF WT_ZHR_SMS.
+
+
+DATA: FILENAME TYPE RLGRAP-FILENAME.
+
+DATA: G_RC    TYPE SY-SUBRC,
+      G_TABIX TYPE SY-TABIX.
+
+DATA: GT_ERR TYPE STANDARD TABLE OF GTY_ERR,
+      LT_ERR TYPE STANDARD TABLE OF GTY_ERR,
+      GS_ERR TYPE GTY_ERR.

@@ -1,0 +1,143 @@
+*&---------------------------------------------------------------------*
+*&  Include           ZR_FI_HR_LOAN_DD
+*&---------------------------------------------------------------------*
+
+ DATA:PA14  TYPE PA0014.
+ DATA:WT_return_PA0014 like bapireturn1.
+
+TYPE-POOLS: SLIS.
+TABLES:BKPF,PA0014,BSEG,LFB1.
+
+*-----------------------------------------------------------------------*
+*              A L V   D E C L A R A T I O N S                          *
+*-----------------------------------------------------------------------*
+type-pools: slis.
+
+DATA: GT_FLDCAT TYPE STANDARD TABLE OF SLIS_FIELDCAT_ALV,
+      GS_FLDCAT TYPE SLIS_FIELDCAT_ALV.
+data : GT_RETRO_MONTH_DIFF TYPE STANDARD TABLE OF HR99LRET_S_MONTH_DIFF.
+data : GS_RETRO_MONTH_DIFF TYPE  HR99LRET_S_MONTH_DIFF.
+DATA : LGART TYPE STANDARD TABLE OF SEL_LGART.
+*ALV data declarations
+data: fieldcatalog type slis_t_fieldcat_alv with header line,
+      gd_tab_group type slis_t_sp_group_alv,
+      gd_layout    type slis_layout_alv,
+      gt_top_of_page      TYPE slis_formname VALUE 'TOP_OF_PAGE',
+      gt_top_of_list      TYPE slis_formname VALUE 'TOP_OF_LIST',
+      gd_repid     like sy-repid,
+       i_lines LIKE sy-tabix.
+
+
+*-----------------------------------------------------------------------*
+*            S T R U C T U R E S   D E C L A R A T I O N S              *
+*-----------------------------------------------------------------------*      i_lines LIKE sy-tabix.
+TYPES : BEGIN OF GTY_LOG,
+  MSG_TYPE TYPE  BAPI_MTYPE,
+  PERNR TYPE  P0001-PERNR,
+  DATE TYPE SY-DATUM,
+  MESSAGE TYPE BAPI_MSG,
+  END OF GTY_LOG.
+
+DATA :  GT_LOG TYPE TABLE OF GTY_LOG,
+      GS_LOG TYPE GTY_LOG.
+DATA : BEGIN OF GS_FINAL,
+  PERNR LIKE PA0014-PERNR,
+  AWKEY LIKE BKPF-AWKEY,
+  BUDAT LIKE BKPF-BUDAT,
+  SUBTY LIKE PA0014-SUBTY,
+  BEGDA LIKE PA0014-BEGDA,
+  ENDDA LIKE PA0014-ENDDA,
+  BETRG LIKE PA0014-BETRG,
+*  ZUORD LIKE PA0014-ZUORD,
+  BELNR LIKE BSEG-BELNR,
+  GJAHR LIKE BSEG-GJAHR,"YEAR
+  ZDATE LIKE PA0014-ZDATE,
+  ZFPER LIKE PA0014-ZFPER,
+  ZANZL LIKE PA0014-ZANZL,
+  BUKRS LIKE BKPF-BUKRS,
+  BLART LIKE BKPF-BLART, "DOC TYPE
+  END OF GS_FINAL.
+
+TYPES : BEGIN OF GS_VENDORS,
+    LIFNR LIKE LFB1-LIFNR,
+  END OF GS_VENDORS.
+
+
+  TYPES : BEGIN OF GS_BKPF,
+    BELNR LIKE BKPF-BELNR,
+    BUKRS LIKE BKPF-BUKRS,
+    GJAHR LIKE BKPF-GJAHR,
+    AWKEY LIKE BKPF-AWKEY,
+    XBLNR LIKE BKPF-XBLNR,
+    BLART  LIKE  BKPF-BLART,
+    BUDAT  LIKE  BKPF-BUDAT,
+
+**    SHKZG LIKE BSEG-SHKZG, "D/C INDICATOR
+**    WRBTR LIKE BSEG-WRBTR,"AMOUNT
+***    FDWBT LIKE BSEG-FDWBT,"AMOUNT WITH SIGN
+**    LIFNR LIKE BSEG-LIFNR,"VENDOR
+***    BUKRS LIKE BSEG-BUKRS,"VENDOR
+
+    END OF GS_BKPF.
+
+    TYPES :BEGIN OF GS_PA0014,
+      ZUORD LIKE PA0014-ZUORD,
+      PERNR LIKE PA0014-PERNR,
+      END OF GS_PA0014.
+
+
+      TYPES : BEGIN OF GS_BSEG,
+        BUKRS LIKE BSEG-BUKRS,
+        BELNR LIKE BSEG-BELNR,
+        GJAHR LIKE BSEG-GJAHR,
+        SHKZG LIKE BSEG-SHKZG, "D/C INDICATOR
+        WRBTR LIKE BSEG-WRBTR,"AMOUNT
+*        FDWBT LIKE BSEG-FDWBT,"AMOUNT WITH SIGN
+        LIFNR LIKE BSEG-LIFNR,"VENDOR
+*        BUKRS LIKE BSEG-BUKRS,"VENDOR
+        END OF GS_BSEG.
+
+TYPES : BEGIN OF GS_LFB1,
+    LIFNR LIKE LFB1-LIFNR,
+    PERNR LIKE LFB1-PERNR,
+  BUKRS LIKE lfb1-BUKRS,
+  END OF GS_LFB1.
+
+
+DATA: GT_FINAL LIKE TABLE OF  GS_FINAL,
+      GA_FINAL LIKE LINE OF   GT_FINAL,
+
+     WT_BKPF TYPE STANDARD TABLE OF GS_BKPF,
+          WA_BKPF LIKE LINE OF WT_BKPF,
+
+           WT_PA0014 TYPE STANDARD TABLE OF GS_PA0014,
+            WA_PA0014 LIKE LINE OF WT_PA0014,
+
+            WT_BSEG TYPE STANDARD TABLE OF GS_BSEG,
+            WA_BSEG LIKE LINE OF WT_BSEG,
+
+           WT_LFB1 TYPE STANDARD TABLE OF GS_LFB1,
+            WA_LFB1 LIKE LINE OF WT_LFB1,
+
+WT_VENDORS TYPE STANDARD TABLE OF GS_VENDORS,
+WA_VENDORS LIKE LINE OF WT_VENDORS,
+
+WT_VENDORS_ERROR TYPE STANDARD TABLE OF GS_VENDORS,
+WA_VENDORS_ERROR LIKE LINE OF WT_VENDORS_ERROR,
+
+
+            LT_MSG TYPE STANDARD TABLE OF BDCMSGCOLL.
+
+               DATA:  Begdate TYPE P0001-BEGDA ,
+*                      EndDATE TYPE P0001-BEGDA,
+                      EndDATE TYPE SY-DATUM,
+                      LEN TYPE I,
+                      D TYPE c LENGTH 2,
+                       M TYPE C LENGTH 2,
+                        Y TYPE C LENGTH 4,
+                        FLAG TYPE BOOLEAN ,
+*                        MonthlyAM TYPE CHAR10  .
+*                        MonthlyAM TYPE P DECIMALS 2  .
+                        MonthlyAM TYPE BETRG .
+
+               Data RETURN TYPE BAPIRETURN1.

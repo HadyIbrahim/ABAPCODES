@@ -1,0 +1,36 @@
+# Copyright (c) 1993-2009 Microsoft Corp.
+#
+# This is a sample HOSTS file used by Microsoft TCP/IP for Windows.
+#
+# This file contains the mappings of IP addresses to host names. Each
+# entry should be kept on an individual line. The IP address should
+# be placed in the first column followed by the corresponding host name.
+# The IP address and the host name should be separated by at least one
+# space.
+#
+# Additionally, comments (such as these) may be inserted on individual
+# lines or following the machine name denoted by a '#' symbol.
+#
+# For example:
+#
+#      102.54.94.97     rhino.acme.com          # source server
+#       38.25.63.10     x.acme.com              # x client host
+
+# localhost name resolution is handled within DNS itself.
+#	127.0.0.1       localhost
+#	::1             localhost
+
+10.10.3.11           sapdev.elaraby.net
+10.0.0.35                       ides.elaraby.net
+#	127.0.0.1                    hana
+	10.10.3.34	egcaism01.elarabygroup.com
+        10.10.3.34	egcaism01
+        10.3.1.53       WIN-FUCJ9SVCPKT
+        10.15.2.113     WIN-ELSL8B5VB7Q
+        10.10.5.11    erpbw.elarabygroup.com:8101
+        10.3.1.53       WIN-FUCJ9SVCPKT
+        10.15.2.113     WIN-ELSL8B5VB7Q
+        10.10.3.50      prodbw.elarabygroup.com
+        10.10.3.22      erpdi.elarabygroup.com
+        10.10.3.34     EGCAISM01.elarabygroup.com
+        10.10.3.22     sapdiv.elaraby.net

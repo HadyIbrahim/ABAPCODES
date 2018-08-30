@@ -1,0 +1,23 @@
+*&---------------------------------------------------------------------*
+*& Report  ZR_FI_HR_LOAN
+*&
+*&---------------------------------------------------------------------*
+*&
+*&
+*&---------------------------------------------------------------------*
+
+REPORT  ZR_FI_HR_LOAN.
+INCLUDE ZR_FI_HR_LOAN_DD.
+INCLUDE ZR_FI_HR_LOAN_SS.
+INCLUDE ZR_FI_HR_LOAN_FORM.
+
+START-OF-SELECTION.
+
+PERFORM GET_DATA.
+END-OF-SELECTION.
+PERFORM BUILD_FIELDCATALOG.
+
+PERFORM VENDORS.  "display vendors that is not in list
+
+TOP-OF-PAGE.
+PERFORM TOP_OF_PAGE.
